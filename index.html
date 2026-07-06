@@ -1,0 +1,1678 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>SaleTrail: New Zealand Garage Sale Finder</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1F3D2E">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="SaleTrail">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(()=>{});
+    });
+  }
+</script>
+<style>
+  :root{
+    --bush:#1F3D2E; --bush-dark:#142A1F; --orange:#E8632C; --orange-dark:#C74E1D;
+    --gold:#C79A2E; --gold-dark:#A47D1F; --cream:#F6F1E4; --paper:#FBF8EF;
+    --ink:#21261F; --moss:#7C9473; --line:rgba(33,38,31,0.13); --clay:#B8462E; --err:#B8462E;
+    --sea1:#cfe3ea; --sea2:#8fb5c4;
+    --ease:cubic-bezier(.22,.61,.36,1);
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{ background:#0d1712; font-family:'Work Sans', sans-serif; color:var(--ink); display:flex; justify-content:center; padding:28px 12px; min-height:100vh; }
+  @media (prefers-reduced-motion: reduce){ *{ animation-duration:0.001ms !important; transition-duration:0.001ms !important; } }
+
+  .display{ font-family:'Bebas Neue', sans-serif; letter-spacing:0.03em; }
+  .mono{ font-family:'JetBrains Mono', monospace; }
+  .hand{ font-family:'Caveat', cursive; font-weight:700; }
+  .icon{ width:18px; height:18px; flex-shrink:0; }
+  .icon svg{ width:100%; height:100%; }
+
+  .wrap{ display:flex; flex-direction:column; align-items:center; gap:12px; }
+  .caption{ color:rgba(246,241,228,0.55); font-size:11.5px; text-align:center; max-width:320px; }
+
+  .device{
+    width:390px; max-width:100%; height:844px; background:var(--paper);
+    border-radius:44px; border:10px solid #0a0f0b;
+    box-shadow:0 34px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(199,154,46,0.12);
+    position:relative; overflow:hidden; display:flex; flex-direction:column;
+  }
+  .notch{ position:absolute; top:10px; left:50%; transform:translateX(-50%); width:120px; height:22px; background:#0a0f0b; border-radius:14px; z-index:90; }
+
+  .screen{ flex:1; overflow-y:auto; overflow-x:hidden; position:relative; background-color:var(--paper);
+    background-image:radial-gradient(rgba(33,38,31,0.05) 1px, transparent 1.4px); background-size:15px 15px;
+    padding-bottom:8px; scroll-behavior:smooth; }
+  .screen::-webkit-scrollbar{display:none;}
+
+  @keyframes pushIn{ from{ transform:translateX(26px); opacity:0; } to{ transform:translateX(0); opacity:1; } }
+  @keyframes popIn{ from{ transform:translateX(-20px); opacity:0; } to{ transform:translateX(0); opacity:1; } }
+  @keyframes fadeIn{ from{ opacity:0; } to{ opacity:1; } }
+  @keyframes cardIn{ from{ transform:translateY(7px); opacity:0; } to{ transform:translateY(0); opacity:1; } }
+  @keyframes shimmer{ 0%{ background-position:-260px 0; } 100%{ background-position:260px 0; } }
+  @keyframes popStamp{ 0%{ transform:scale(0.6); opacity:0; } 60%{ transform:scale(1.08); opacity:1; } 100%{ transform:scale(1); } }
+
+  .screen.anim-push{ animation:pushIn .32s var(--ease); }
+  .screen.anim-pop{ animation:popIn .32s var(--ease); }
+  .screen.anim-fade{ animation:fadeIn .22s ease; }
+  .cardIn{ animation:cardIn .34s var(--ease) both; }
+
+  .topbar{ padding:20px 20px 12px; display:flex; align-items:center; justify-content:space-between; }
+  .brand{ display:flex; align-items:center; gap:9px; }
+  .brand .name{ font-family:'Bebas Neue'; font-size:20px; letter-spacing:0.06em; color:var(--bush);}
+
+  .tabbar{ position:relative; display:flex; border-top:1px solid var(--line); background:var(--cream); padding:10px 10px calc(10px + env(safe-area-inset-bottom,0px)); }
+  .tabIndicator{ position:absolute; top:0; left:0; width:25%; height:2.5px; background:var(--orange); transition:transform .3s var(--ease); border-radius:0 0 3px 3px; }
+  .tab{ flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; font-size:10.5px; font-weight:600; color:var(--moss); background:none; border:none; padding:6px 0; cursor:pointer; letter-spacing:0.02em; transition:color .2s ease, transform .12s ease; }
+  .tab:active{ transform:scale(0.94); }
+  .tab.active{ color:var(--orange-dark); }
+  .tab svg{ width:20px; height:20px; }
+
+  .btn{ display:flex; align-items:center; justify-content:center; gap:8px; padding:14px 18px; border-radius:12px; border:none; cursor:pointer; font-weight:700; font-size:14.5px; letter-spacing:0.01em; width:100%; transition:transform .12s ease, box-shadow .12s ease, background .15s ease; }
+  .btn:active{ transform:scale(0.97); }
+  .btn-primary{ background:var(--orange); color:var(--cream); box-shadow:0 8px 20px rgba(232,99,44,0.28); }
+  .btn-primary:active{ background:var(--orange-dark); }
+  .btn-outline{ background:transparent; border:1.5px solid var(--bush); color:var(--bush); }
+  .btn-store{ background:#fff; color:var(--ink); font-size:13.5px; padding:12px; border:1.5px solid var(--line); font-weight:600; }
+  .btn-store.paid{ border-color:var(--bush); background:rgba(31,61,46,0.05); }
+  .btn-small{ width:auto; padding:8px 12px; font-size:12px; border-radius:8px; }
+  .btn-ghost{ background:none; border:none; color:var(--moss); font-size:12px; cursor:pointer; text-decoration:underline; padding:4px 0; }
+
+  input, select, textarea{ width:100%; padding:12px 14px; border-radius:10px; border:1.5px solid var(--line); background:#fff; font-family:'Work Sans'; font-size:14px; color:var(--ink); transition:border-color .15s ease, background .15s ease; }
+  input:focus, select:focus, textarea:focus{ outline:none; border-color:var(--bush); }
+  input.err, select.err{ border-color:var(--err); background:#fff6f4; }
+  label{ font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.07em; color:var(--moss); display:block; margin-bottom:6px;}
+  .field{ margin-bottom:14px; }
+  .errtext{ font-size:11px; color:var(--err); margin-top:4px; max-height:0; overflow:hidden; transition:max-height .18s ease; }
+  .errtext.show{ max-height:26px; }
+
+  .card{ background:#fff; border-radius:16px; border:1px solid var(--line); box-shadow:0 3px 12px rgba(33,38,31,0.05); transition:transform .12s ease, box-shadow .12s ease; position:relative; }
+  .card.tap{ cursor:pointer; }
+  .card.tap:active{ transform:scale(0.985); box-shadow:0 2px 6px rgba(33,38,31,0.06); }
+
+  .badge{ display:inline-flex; align-items:center; gap:5px; padding:5px 10px; border-radius:7px; font-size:10.5px; font-weight:700; letter-spacing:0.03em; text-transform:uppercase; border:1px solid var(--line); color:var(--bush); background:var(--cream); }
+  .badge-gold{ border-color:rgba(199,154,46,0.5); color:var(--gold-dark); background:rgba(199,154,46,0.1); }
+
+  .stamp{ width:52px; height:52px; border-radius:50%; border:2px solid var(--bush); color:var(--bush); display:flex; align-items:center; justify-content:center; background:var(--cream); flex-shrink:0; position:relative; }
+  .stamp svg{ width:24px; height:24px; }
+  .stamp::after{ content:''; position:absolute; inset:-5px; border-radius:50%; border:1px dotted var(--moss); }
+  .stamp.gold{ border-color:var(--gold); }
+  .stamp.gold::after{ border-color:rgba(199,154,46,0.55); }
+  .stamp.gold svg{ color:var(--gold-dark); }
+  .stamp.sm{ width:40px; height:40px; }
+  .stamp.sm svg{ width:19px; height:19px; }
+
+  .catbadge{ display:flex; flex-direction:column; align-items:center; gap:6px; width:64px; flex-shrink:0; cursor:pointer; }
+  .catbadge .circ{ width:50px; height:50px; border-radius:50%; background:#fff; border:1.5px solid var(--line); display:flex; align-items:center; justify-content:center; color:var(--bush); box-shadow:0 2px 8px rgba(33,38,31,0.06); transition:transform .12s ease, border-color .15s ease, background .15s ease, color .15s ease; }
+  .catbadge .circ:active{ transform:scale(0.92); }
+  .catbadge .circ svg{ width:22px; height:22px; }
+  .catbadge .circ.on{ border-color:var(--orange); background:rgba(232,99,44,0.08); color:var(--orange-dark); }
+  .catbadge span{ font-size:10px; font-weight:600; text-align:center; line-height:1.2; color:var(--ink); }
+
+  h1.hero{ font-family:'Bebas Neue'; font-size:38px; line-height:1.02; letter-spacing:0.02em;}
+  .sectiontitle{ font-family:'Bebas Neue'; font-size:20px; letter-spacing:0.03em; color:var(--bush); }
+  .eyebrow{ font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.14em; color:var(--orange-dark); }
+
+  .chip{ padding:8px 12px; border-radius:8px; border:1.5px solid var(--line); font-size:12.5px; font-weight:600; background:#fff; color:var(--ink); cursor:pointer; white-space:nowrap; transition:transform .12s ease, background .15s ease, color .15s ease, border-color .15s ease; }
+  .chip:active{ transform:scale(0.94); }
+  .chip.on{ background:var(--bush); border-color:var(--bush); color:var(--cream); }
+
+  .divider{ height:1px; background:var(--line); margin:16px 0; }
+  ::placeholder{ color:#b3ad9c; }
+  .fern{ width:22px; height:22px; }
+
+  .toast{ position:absolute; left:16px; right:16px; bottom:20px; background:var(--ink); color:var(--cream); padding:12px 14px; border-radius:12px; font-size:12.5px; z-index:80; opacity:0; transform:translateY(10px); transition:all .28s var(--ease); pointer-events:none; box-shadow:0 10px 24px rgba(0,0,0,0.25); }
+  .toast.show{ opacity:1; transform:translateY(0); }
+
+  .photorow{ display:flex; gap:8px; flex-wrap:wrap; }
+  .phototile{ width:64px;height:64px;border-radius:9px; display:flex;align-items:center;justify-content:center; font-size:20px; cursor:pointer; transition:transform .12s ease; }
+  .phototile:active{ transform:scale(0.92); }
+  .phototile.add{ background:#eee7d6;border:1.5px dashed var(--moss); color:var(--moss); }
+  .phototile.filled{ background:var(--moss); color:#fff; font-size:13px; font-weight:700; }
+
+  .emptystate{ text-align:center; padding:30px 20px; color:var(--moss); font-size:13px; line-height:1.6; }
+  .emptystate .sectiontitle{ font-size:17px; margin-bottom:6px; color:var(--bush); }
+
+  .skel{ border-radius:12px; background:linear-gradient(90deg, #eee7d6 25%, #f5f0e2 37%, #eee7d6 63%); background-size:400px 100%; animation:shimmer 1.3s infinite linear; }
+
+  #filterDrawer{ position:absolute; inset:0; display:flex; align-items:flex-end; z-index:70; background:rgba(20,26,20,0); pointer-events:none; transition:background .28s ease; }
+  #filterDrawer.open{ background:rgba(20,26,20,0.5); pointer-events:auto; }
+  #filterDrawer .sheet{ width:100%; background:var(--paper); border-radius:20px 20px 0 0; padding:20px; max-height:80%; overflow-y:auto; transform:translateY(100%); transition:transform .32s var(--ease); }
+  #filterDrawer.open .sheet{ transform:translateY(0); }
+
+  /* map */
+  .breadcrumb{ display:flex; align-items:center; gap:6px; padding:0 20px 8px; font-size:12.5px; font-weight:700; }
+  .breadcrumb .crumb{ color:var(--moss); }
+  .breadcrumb .crumb.link{ color:var(--bush); cursor:pointer; }
+  .breadcrumb .crumb.current{ color:var(--orange-dark); }
+  .mapbox{ position:relative; margin:0 16px; border-radius:16px; overflow:hidden; border:1.5px solid var(--bush); height:300px; background:linear-gradient(180deg,var(--sea1),var(--sea2)); }
+  .mapview{ position:absolute; inset:0; transition:opacity .38s var(--ease), transform .38s var(--ease); }
+  #mapRegionView{ opacity:0; transform:scale(1.06); pointer-events:none; }
+  #mapCountry{ opacity:1; transform:scale(1); pointer-events:auto; }
+  .mapbox.zoomed #mapCountry{ opacity:0; transform:scale(0.93); pointer-events:none; }
+  .mapbox.zoomed #mapRegionView{ opacity:1; transform:scale(1); pointer-events:auto; }
+  .compass{ position:absolute; top:10px; right:10px; width:26px; height:26px; opacity:0.8; }
+  .mapreadout{ position:absolute; bottom:10px; left:10px; z-index:20; background:rgba(255,255,255,0.92); padding:6px 11px; border-radius:7px; font-size:10.5px; font-weight:700; color:var(--bush); pointer-events:none; }
+  .maptitle{ position:absolute; top:10px; left:10px; z-index:20; font-family:'Bebas Neue'; font-size:15px; letter-spacing:0.04em; color:var(--bush); background:rgba(255,255,255,0.85); padding:3px 9px; border-radius:6px; }
+
+  .regiondot{ position:absolute; transform:translate(-50%,-50%); text-align:center; cursor:pointer; }
+  .rdot{ width:16px; height:16px; border-radius:50%; background:var(--orange); border:2px solid var(--cream); margin:0 auto; box-shadow:0 2px 6px rgba(0,0,0,0.25); position:relative; transition:transform .12s ease; }
+  .regiondot:active .rdot{ transform:scale(0.85); }
+  .regiondot.muted .rdot{ background:#b9b09a; width:9px; height:9px; }
+  .rcount{ position:absolute; top:-8px; left:50%; transform:translateX(-50%); background:var(--ink); color:#fff; font-size:9px; font-weight:700; border-radius:999px; padding:1px 5px; white-space:nowrap; }
+  .rlabel{ font-size:10.5px; font-weight:700; color:var(--bush); margin-top:3px; text-shadow:0 1px 2px rgba(255,255,255,0.8); }
+  .regiondot.muted .rlabel{ color:var(--moss); font-weight:600; }
+
+  .safetybox{ display:flex; gap:9px; background:rgba(232,99,44,0.06); border:1px solid rgba(232,99,44,0.25); border-radius:12px; padding:12px; font-size:12px; color:var(--ink); line-height:1.55; }
+  .lawlist{ list-style:none; padding:0; margin:0; }
+  .lawlist li{ display:flex; gap:8px; padding:9px 0; border-bottom:1px solid var(--line); font-size:12.5px; line-height:1.55; }
+  .lawlist li:last-child{ border-bottom:none; }
+  .lawlist li::before{ content:'\\2022'; color:var(--orange); font-weight:700; }
+
+  .searchdropdown{ position:absolute; left:20px; right:20px; top:calc(100% - 4px); background:#fff; border:1px solid var(--line); border-radius:12px; box-shadow:0 10px 24px rgba(0,0,0,0.12); z-index:40; max-height:220px; overflow-y:auto; }
+  .searchhit{ display:flex; gap:10px; align-items:center; padding:9px 12px; cursor:pointer; border-bottom:1px solid var(--line); }
+  .searchhit:last-child{ border-bottom:none; }
+  .searchhit:active{ background:var(--cream); }
+
+  .favbtn{ position:absolute; top:10px; right:10px; background:rgba(255,255,255,0.9); border:1px solid var(--line); border-radius:50%; width:30px; height:30px; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:transform .12s ease; }
+  .favbtn:active{ transform:scale(0.88); }
+  .favbtn svg{ width:16px; height:16px; color:var(--moss); }
+  .favbtn.on svg{ color:var(--clay); }
+
+  /* kiwi identity: corrugated iron texture, used sparingly as the signature material */
+  .corro{
+    background-image: repeating-linear-gradient(100deg,
+      rgba(255,255,255,0.10) 0px, rgba(255,255,255,0.10) 2px,
+      rgba(0,0,0,0.16) 2px, rgba(0,0,0,0.16) 4px,
+      rgba(255,255,255,0.03) 4px, rgba(255,255,255,0.03) 8px);
+    background-color:#3a4a42;
+  }
+  .corro-light{
+    background-image: repeating-linear-gradient(100deg,
+      rgba(255,255,255,0.55) 0px, rgba(255,255,255,0.55) 2px,
+      rgba(120,120,110,0.18) 2px, rgba(120,120,110,0.18) 4px,
+      rgba(255,255,255,0.15) 4px, rgba(255,255,255,0.15) 8px);
+    background-color:#e7e2d3;
+  }
+  .plate{
+    display:inline-flex; align-items:center; gap:6px; background:var(--cream); color:var(--ink);
+    border:2.5px solid var(--ink); border-radius:6px; padding:4px 10px 3px;
+    font-family:'JetBrains Mono'; font-weight:700; font-size:12px; letter-spacing:0.08em;
+    box-shadow:0 3px 0 rgba(0,0,0,0.25);
+  }
+  .plate .bolt{ width:5px; height:5px; border-radius:50%; background:var(--moss); opacity:0.6; }
+
+  .benefitcard{ background:#fff; border-radius:16px; border:1px solid var(--line); overflow:hidden; margin-bottom:18px; }
+  .benefitcard .strip{ height:7px; }
+  .benefitcard .inner{ padding:14px 16px 6px; }
+  .benefitcard .kicker{ font-family:'Bebas Neue'; font-size:15px; letter-spacing:0.05em; color:var(--bush); margin-bottom:8px; }
+  .benefitrow{ display:flex; gap:10px; padding:8px 0 10px; border-top:1px solid var(--line); }
+  .benefitrow:first-of-type{ border-top:none; }
+  .benefitrow .bicon{ width:30px; height:30px; border-radius:50%; background:var(--cream); display:flex; align-items:center; justify-content:center; flex-shrink:0; color:var(--orange-dark); }
+  .benefitrow .bicon svg{ width:16px; height:16px; }
+  .benefitrow b{ font-size:12.5px; display:block; margin-bottom:1px; }
+  .benefitrow span{ font-size:11.5px; color:var(--moss); line-height:1.45; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute;">
+  <defs>
+    <linearGradient id="landGrad" x1="20%" y1="0%" x2="85%" y2="100%">
+      <stop offset="0%" stop-color="#9aab84"/>
+      <stop offset="45%" stop-color="#7c9268"/>
+      <stop offset="100%" stop-color="#5c7250"/>
+    </linearGradient>
+    <linearGradient id="seaGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#d7e9ef"/>
+      <stop offset="100%" stop-color="#8fb5c4"/>
+    </linearGradient>
+    <filter id="landShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3.5" flood-color="#1a2e20" flood-opacity="0.28"/>
+    </filter>
+  </defs>
+</svg>
+<div class="wrap">
+<div class="device">
+  <div class="notch"></div>
+
+  <!-- WELCOME -->
+  <div class="screen" id="screen-welcome" style="padding:0; position:relative; background:#20272a; overflow-x:hidden;">
+
+    <!-- full-bleed map backdrop -->
+    <div style="position:absolute; top:0; left:0; right:0; height:490px; z-index:0; overflow:hidden;">
+      <svg viewBox="0 0 385 515" preserveAspectRatio="xMidYMid slice" style="width:100%; height:100%; display:block;">
+        <defs>
+          <linearGradient id="heroSea" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#3f4c53"/>
+            <stop offset="100%" stop-color="#1b2226"/>
+          </linearGradient>
+          <linearGradient id="heroLand" x1="15%" y1="0%" x2="90%" y2="100%">
+            <stop offset="0%" stop-color="#909c7c"/>
+            <stop offset="50%" stop-color="#6d7b5c"/>
+            <stop offset="100%" stop-color="#434d3b"/>
+          </linearGradient>
+          <clipPath id="lensClip"><circle cx="258.8" cy="107.4" r="42"/></clipPath>
+        </defs>
+        <rect x="0" y="0" width="385" height="515" fill="url(#heroSea)"/>
+        <g stroke="rgba(255,255,255,0.07)" stroke-width="1" fill="none">
+          <path d="M10,40 C90,20 160,55 250,35"/>
+          <path d="M5,90 C80,72 160,105 260,85"/>
+          <path d="M10,150 C85,132 160,165 265,148"/>
+          <path d="M15,230 C85,214 155,244 255,228"/>
+          <path d="M20,320 C90,300 160,335 260,315"/>
+          <path d="M20,400 C90,382 155,412 255,398"/>
+        </g>
+        <g filter="url(#landShadow)">
+          <polygon points="254.3,80.8 275.7,121.3 276.3,95.0 289.7,105.5 294.1,134.7 317.8,147.3 337.8,150.3 354.7,135.6 369.6,140.1 362.5,174.3 353.5,196.8 331.0,196.0 323.1,207.7 325.8,224.3 321.5,231.5 310.3,252.3 295.7,278.7 272.8,294.0 267.8,283.9 255.5,278.4 272.5,246.7 262.8,225.4 231.0,210.0 231.9,196.0 253.2,182.6 258.2,152.9 256.8,128.0 244.9,102.1 245.7,95.4 231.5,79.4 208.3,45.3 196.0,18.0 206.9,15.0 223.0,36.4 246.0,46.4 254.3,80.8"
+            fill="url(#heroLand)" stroke="#252c20" stroke-width="1" stroke-opacity="0.65" stroke-linejoin="round"/>
+          <polygon points="207.3,264.4 214.0,280.3 235.0,264.7 243.6,281.0 243.6,297.2 232.6,315.1 213.3,343.5 198.2,359.0 209.1,377.5 186.3,378.0 161.0,392.5 153.1,417.8 136.3,456.8 113.1,474.0 98.4,485.0 71.2,484.2 52.1,471.5 20.0,468.8 15.0,454.6 30.9,426.0 68.0,387.9 87.1,380.7 108.3,366.0 133.6,345.8 151.3,325.8 164.5,297.1 175.7,287.3 180.0,265.8 200.8,248.0 207.3,264.4"
+            fill="url(#heroLand)" stroke="#252c20" stroke-width="1" stroke-opacity="0.65" stroke-linejoin="round"/>
+          <polygon points="78,494 88,490 94,498 90,507 78,505 72,499" fill="url(#heroLand)" stroke="#252c20" stroke-width="0.7" stroke-opacity="0.65"/>
+        </g>
+        <circle cx="259.2" cy="278.6" r="6" fill="var(--orange)" stroke="#F6F1E4" stroke-width="2"/>
+        <circle cx="196.0" cy="365.1" r="6" fill="var(--orange)" stroke="#F6F1E4" stroke-width="2"/>
+        <circle cx="133.0" cy="455.6" r="4" fill="#9aa08e" stroke="#F6F1E4" stroke-width="1.6"/>
+
+        <!-- magnifying lens: a genuine optical zoom on the same coastline, centred on Auckland -->
+        <g clip-path="url(#lensClip)">
+          <rect x="-600" y="-600" width="1600" height="1600" fill="url(#heroSea)" transform="translate(-517.6,-214.8) scale(3)"/>
+          <g transform="translate(-517.6,-214.8) scale(3)">
+            <polygon points="254.3,80.8 275.7,121.3 276.3,95.0 289.7,105.5 294.1,134.7 317.8,147.3 337.8,150.3 354.7,135.6 369.6,140.1 362.5,174.3 353.5,196.8 331.0,196.0 323.1,207.7 325.8,224.3 321.5,231.5 310.3,252.3 295.7,278.7 272.8,294.0 267.8,283.9 255.5,278.4 272.5,246.7 262.8,225.4 231.0,210.0 231.9,196.0 253.2,182.6 258.2,152.9 256.8,128.0 244.9,102.1 245.7,95.4 231.5,79.4 208.3,45.3 196.0,18.0 206.9,15.0 223.0,36.4 246.0,46.4 254.3,80.8"
+              fill="url(#heroLand)" stroke="#252c20" stroke-width="1" stroke-opacity="0.7" stroke-linejoin="round"/>
+          </g>
+          <circle cx="258.8" cy="107.4" r="3" fill="var(--orange)" stroke="#fff" stroke-width="1"/>
+          <circle cx="270" cy="117" r="3" fill="var(--gold)" stroke="#fff" stroke-width="1"/>
+          <circle cx="247" cy="97" r="3" fill="var(--orange)" stroke="#fff" stroke-width="1"/>
+        </g>
+        <circle cx="258.8" cy="107.4" r="42" fill="none" stroke="#F6F1E4" stroke-width="3.5"/>
+        <circle cx="258.8" cy="107.4" r="45.5" fill="none" stroke="rgba(0,0,0,0.2)" stroke-width="1.5"/>
+        <line x1="289" y1="137" x2="311" y2="159" stroke="#F6F1E4" stroke-width="8" stroke-linecap="round"/>
+        <line x1="289" y1="137" x2="311" y2="159" stroke="#8a8577" stroke-width="8" stroke-linecap="round" stroke-opacity="0.35"/>
+        <rect x="213" y="140" width="94" height="19" rx="9.5" fill="rgba(246,241,228,0.95)"/>
+        <text x="260" y="153.5" text-anchor="middle" font-family="Work Sans" font-weight="700" font-size="10.5" letter-spacing="0.03em" fill="#2c3527">AUCKLAND ZOOM</text>
+      </svg>
+      <div style="position:absolute; inset:0; background:linear-gradient(180deg, rgba(20,22,20,0.05) 0%, rgba(17,19,18,0.4) 58%, rgba(13,15,14,0.9) 100%);"></div>
+    </div>
+
+    <!-- foreground content, layered on top of the backdrop -->
+    <div style="position:relative; z-index:1;">
+      <div style="padding:44px 24px 0; display:flex; align-items:center;">
+        <svg style="width:20px; height:20px;" viewBox="0 0 24 24" fill="none" stroke="var(--orange)" stroke-width="1.8" stroke-linecap="round"><line x1="12" y1="2" x2="12" y2="22"/><line x1="12" y1="5" x2="6" y2="3"/><line x1="12" y1="8" x2="18.5" y2="6"/><line x1="12" y1="11" x2="5.5" y2="9.5"/><line x1="12" y1="14" x2="19" y2="12.5"/><line x1="12" y1="17" x2="6.5" y2="16"/></svg>
+        <span style="font-family:'Bebas Neue'; font-size:18px; letter-spacing:0.07em; color:#F6F1E4; margin-left:9px;">SALETRAIL</span>
+        <span style="margin-left:auto; font-size:9px; font-weight:700; letter-spacing:0.16em; color:rgba(246,241,228,0.55);">AOTEAROA NZ</span>
+      </div>
+
+      <div style="margin-top:222px; padding:0 26px;">
+        <div class="eyebrow" style="color:var(--orange);">New Zealand's garage sale trail</div>
+        <div style="margin-top:8px;">
+          <h1 class="hero" style="color:#F6F1E4;">FIND A DEAL.</h1>
+          <h1 class="hero" style="color:#F6F1E4;">FIND A HIDDEN GEM.</h1>
+        </div>
+      </div>
+
+      <div style="margin-top:22px; background:var(--paper); border-radius:26px 26px 0 0; box-shadow:0 -14px 30px rgba(0,0,0,0.2); padding:22px 26px 24px;">
+        <p style="color:var(--ink); opacity:0.75; font-size:13.5px; line-height:1.55;">
+          Plan your day, plan your trips, and make the most of every garage sale in Aotearoa, all while your details stay protected.
+        </p>
+        <div style="display:flex; flex-direction:column; gap:10px; margin-top:16px;">
+          <button class="btn btn-primary" onclick="go('signup','push')">Get full access for $5 a month</button>
+          <div style="text-align:center; font-size:11px; color:var(--moss);">List as many sales as you like and browse every sale on the map. One plan, everything included.</div>
+          <div style="display:flex; justify-content:center; gap:14px; margin-top:4px;">
+            <button class="btn-ghost" onclick="go('about','fade')">About SaleTrail</button>
+            <span style="color:var(--line); font-size:12px;">&middot;</span>
+            <button class="btn-ghost" onclick="go('login','push')">Already a member? Log in</button>
+          </div>
+        </div>
+        <div style="padding-top:16px; font-size:10px; color:var(--moss); line-height:1.5;">
+          Sales are listed by their hosts and attended at your own risk. SaleTrail is not responsible for the safety of anyone using the app, or for any loss, theft, or damage to belongings.
+          <span class="btn-ghost" style="display:inline;" onclick="openLegal('welcome')">Read more</span>
+        </div>
+        <div style="text-align:center; padding:6px 0 0;"><span style="font-size:9px; color:var(--line); cursor:pointer;" onclick="adminUnlock()">·</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOG IN -->
+  <div class="screen" id="screen-login" style="display:none;">
+    <div class="topbar"><button onclick="go('welcome','pop')" style="background:none;border:none; font-size:18px;">&#8249;</button><span class="eyebrow">Log in</span><span></span></div>
+    <div style="padding:0 20px 24px;">
+      <div class="sectiontitle" style="font-size:26px; margin-bottom:4px;">Welcome back</div>
+      <p style="font-size:13px; color:var(--moss); margin-bottom:18px;">Log in to pick up your membership and any sale you're hosting.</p>
+
+      <div class="field"><label>Email</label><input id="loginEmail" placeholder="you@email.co.nz"><div class="errtext" id="err-loginEmail">Enter a valid email address.</div></div>
+      <div class="field"><label>Password</label><input type="password" id="loginPassword" placeholder="Your password"><div class="errtext" id="err-loginPassword">Enter your password.</div></div>
+      <div class="errtext" id="err-loginFail" style="margin-bottom:10px;">We couldn't find an account with those details in this demo session. Try signing up instead.</div>
+
+      <button class="btn btn-primary" onclick="submitLogin()">Log in</button>
+      <p style="font-size:11px; color:var(--moss); margin-top:14px; line-height:1.6;">This is a prototype, so logging in restores whatever membership and host status you set up earlier in this session rather than checking a real account database.</p>
+
+      <div style="display:flex; justify-content:center; gap:14px; margin-top:18px;">
+        <button class="btn-ghost" onclick="go('signup','push')">New here? Create an account</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SIGNUP -->
+  <div class="screen" id="screen-signup" style="display:none;">
+    <div class="topbar"><button onclick="go('welcome','pop')" style="background:none;border:none; font-size:18px;">&#8249;</button><span class="eyebrow">Create account</span><span></span></div>
+    <div style="padding:0 20px 24px;">
+      <div class="sectiontitle" style="font-size:26px; margin-bottom:4px;">One plan, full access</div>
+      <p style="font-size:13px; color:var(--moss); margin-bottom:16px;">List as many sales as you like from your own address, and browse every sale on the map. Your address becomes the only address your own listings can use, which keeps the map accurate for everyone.</p>
+
+      <div class="benefitcard">
+        <div class="strip corro"></div>
+        <div class="inner">
+          <div class="kicker">EVERYTHING, ONE PRICE</div>
+          <div class="benefitrow" style="border-top:none;"><div class="bicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2 L14.5 8.5 L21 9.3 L16 13.7 L17.5 20 L12 16.5 L6.5 20 L8 13.7 L3 9.3 L9.5 8.5 Z"/></svg></div><div><b>See it first</b><span>New sales appear the moment they're posted, so you're not last to the best finds.</span></div></div>
+          <div class="benefitrow"><div class="bicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg></div><div><b>No more remembering to take it down</b><span>Your own listings disappear the second they end. Nothing to log back in and delete.</span></div></div>
+          <div class="benefitrow"><div class="bicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="8" width="16" height="12" rx="1"/><path d="M4 8l8-4l8 4"/></svg></div><div><b>List the whole sale, not item by item</b><span>One listing covers your entire driveway, and it's included, not an extra charge.</span></div></div>
+        </div>
+      </div>
+
+      <div class="field"><label>Full name</label><input id="hostName" placeholder="Hana Williams"><div class="errtext" id="err-hostName">Enter your name.</div></div>
+      <div class="field"><label>Street address</label><input id="hostAddress" placeholder="14 Totara Grove, Mount Eden, Auckland"><div class="errtext" id="err-hostAddress">Enter your address. This is what any sale you list will use.</div></div>
+      <div class="field"><label>Phone</label><input id="hostPhone" placeholder="021 234 5678"></div>
+      <div class="field"><label>Email</label><input id="hostEmail" placeholder="hana@email.co.nz"><div class="errtext" id="err-hostEmail">Enter a valid email address.</div></div>
+      <div class="field"><label>Password</label><input type="password" id="hostPassword" placeholder="Choose a password" oninput="checkPasswordStrength(this,'hostPwHint')"><div id="hostPwHint" style="font-size:11px; color:var(--moss); margin-top:4px;">At least 8 characters.</div><div class="errtext" id="err-hostPassword">Password needs to be at least 8 characters.</div></div>
+
+      <div class="divider"></div>
+      <div class="card" style="padding:14px; margin-bottom:16px; border:1.5px solid rgba(199,154,46,0.5); background:linear-gradient(180deg,#fff,#fdf8ec);">
+        <div style="display:flex; justify-content:space-between; font-size:13.5px; font-weight:600;"><span>Free until <span id="hostTrialDate"></span></span><span class="mono badge-gold" style="padding:3px 8px; border-radius:6px;">$0 today</span></div>
+        <div style="font-size:11.5px; color:var(--moss); margin-top:4px;">Then $5.00 NZD a month, unlimited listing and browsing. Non refundable per period, and you can cancel any time before your free period ends and pay nothing.</div>
+      </div>
+      <div style="text-align:center; font-size:10.5px; color:var(--moss); margin-top:2px;">Fill in your details above first, then add a payment method below.</div>
+      <button class="btn btn-primary" style="margin-top:12px;" onclick="submitSignup()">Add payment method to start free trial</button>
+      <div class="badge" id="hostPaidBadge" style="display:none; margin-top:10px;">Payment method saved</div>
+      <div class="errtext" id="err-hostPayment">Add a payment method to continue.</div>
+      <p style="font-size:10px; color:var(--moss); margin-top:10px; line-height:1.5;">You'll be taken to Stripe's own secure checkout to add a card, Apple Pay, or Google Pay. SaleTrail's own code never sees or stores your card details.</p>
+
+      <label style="display:flex; align-items:flex-start; gap:8px; margin-top:18px; cursor:pointer; text-transform:none; letter-spacing:0;">
+        <input type="checkbox" id="hostTerms" style="width:auto; margin-top:3px;">
+        <span style="font-size:12px; color:var(--ink); font-weight:400;">I understand SaleTrail only lists sale details and is not responsible for the safety of anyone attending or hosting, or for any loss, theft, or damage to belongings. <span class="btn-ghost" onclick="event.preventDefault(); openLegal('signup')">Read full terms</span></span>
+      </label>
+      <div class="errtext" id="err-hostTerms">Please confirm you understand this before continuing.</div>
+    </div>
+  </div>
+
+  <!-- MAP -->
+  <div class="screen" id="screen-map" style="display:none; padding:0;">
+    <div class="topbar" style="padding-bottom:6px;">
+      <div class="brand">
+        <svg class="fern" viewBox="0 0 24 24" fill="none" stroke="var(--orange)" stroke-width="1.8" stroke-linecap="round"><line x1="12" y1="2" x2="12" y2="22"/><line x1="12" y1="5" x2="6" y2="3"/><line x1="12" y1="8" x2="18.5" y2="6"/><line x1="12" y1="11" x2="5.5" y2="9.5"/><line x1="12" y1="14" x2="19" y2="12.5"/><line x1="12" y1="17" x2="6.5" y2="16"/></svg>
+        <div class="name">SALETRAIL</div>
+      </div>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <button class="topAvatar" onclick="go('account','fade')" style="width:32px;height:32px;border-radius:50%;background:var(--bush);color:var(--cream);border:none;font-family:'Bebas Neue';font-size:14px;display:none;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;">?</button>
+        <button onclick="toggleFilters()" style="background:var(--bush); color:var(--cream); border:none; border-radius:9px; padding:9px 13px; font-size:12px; font-weight:700; display:flex; align-items:center; gap:6px;">
+          <svg class="icon" style="width:14px;height:14px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="6" x2="20" y2="6"/><circle cx="9" cy="6" r="2" fill="currentColor" stroke="none"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="15" cy="12" r="2" fill="currentColor" stroke="none"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="11" cy="18" r="2" fill="currentColor" stroke="none"/></svg>
+          Filters<span id="filterCountDot" style="display:none; background:var(--orange); color:#fff; border-radius:999px; width:16px; height:16px; font-size:9.5px; align-items:center; justify-content:center; margin-left:2px;"></span>
+        </button>
+      </div>
+    </div>
+
+    <div style="padding:0 20px 10px; position:relative;">
+      <div style="position:relative;">
+        <svg style="position:absolute; left:12px; top:50%; transform:translateY(-50%); width:15px; height:15px; color:var(--moss);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input id="mapSearch" placeholder="Search an address or suburb" oninput="runSearch(this.value)" style="padding-left:34px; padding-right:30px;">
+        <button onclick="clearSearch()" style="position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; color:var(--moss); font-size:14px; padding:4px;">&times;</button>
+      </div>
+      <div id="searchResults" class="searchdropdown" style="display:none;"></div>
+    </div>
+
+    <div id="categoryRow" style="display:flex; gap:14px; padding:2px 20px 12px; overflow-x:auto;"></div>
+
+    <div class="breadcrumb">
+      <span class="crumb link" id="crumbNZ" onclick="zoomOutToCountry()">New Zealand</span>
+      <span class="crumb" id="crumbSep" style="display:none;">&rsaquo;</span>
+      <span class="crumb current" id="crumbRegion" style="display:none;"></span>
+    </div>
+
+    <div style="display:flex; gap:8px; padding:0 20px 12px; overflow-x:auto;">
+      <div class="chip" id="chipWeekend" onclick="toggleWeekend()">This weekend</div>
+      <div class="chip" id="chipWalk" onclick="toggleWalkable()">Walkable</div>
+      <div class="chip" onclick="toggleFilters()">More filters</div>
+    </div>
+
+    <div class="mapbox" id="mapBox">
+      <div class="mapview" id="mapCountry">
+        <div class="maptitle">New Zealand</div>
+        <svg viewBox="0 0 385 515" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%;">
+          <polygon points="254.3,80.8 275.7,121.3 276.3,95.0 289.7,105.5 294.1,134.7 317.8,147.3 337.8,150.3 354.7,135.6 369.6,140.1 362.5,174.3 353.5,196.8 331.0,196.0 323.1,207.7 325.8,224.3 321.5,231.5 310.3,252.3 295.7,278.7 272.8,294.0 267.8,283.9 255.5,278.4 272.5,246.7 262.8,225.4 231.0,210.0 231.9,196.0 253.2,182.6 258.2,152.9 256.8,128.0 244.9,102.1 245.7,95.4 231.5,79.4 208.3,45.3 196.0,18.0 206.9,15.0 223.0,36.4 246.0,46.4 254.3,80.8"
+            fill="url(#landGrad)" stroke="#3d4a35" stroke-width="0.9" stroke-opacity="0.55" stroke-linejoin="round"/>
+          <polygon points="207.3,264.4 214.0,280.3 235.0,264.7 243.6,281.0 243.6,297.2 232.6,315.1 213.3,343.5 198.2,359.0 209.1,377.5 186.3,378.0 161.0,392.5 153.1,417.8 136.3,456.8 113.1,474.0 98.4,485.0 71.2,484.2 52.1,471.5 20.0,468.8 15.0,454.6 30.9,426.0 68.0,387.9 87.1,380.7 108.3,366.0 133.6,345.8 151.3,325.8 164.5,297.1 175.7,287.3 180.0,265.8 200.8,248.0 207.3,264.4"
+            fill="url(#landGrad)" stroke="#3d4a35" stroke-width="0.9" stroke-opacity="0.55" stroke-linejoin="round"/>
+          <polygon points="78,494 88,490 94,498 90,507 78,505 72,499" fill="url(#landGrad)" stroke="#3d4a35" stroke-width="0.7" stroke-opacity="0.55"/>
+          <text x="290" y="130" font-family="Work Sans" font-style="italic" font-size="10" fill="rgba(31,61,46,0.55)">North Island</text>
+          <text x="30" y="420" font-family="Work Sans" font-style="italic" font-size="10" fill="rgba(31,61,46,0.55)">South Island</text>
+          <text x="195" y="240" font-family="Caveat" font-size="13" fill="rgba(31,61,46,0.55)">Cook Strait</text>
+          <g class="compass-svg">
+            <circle cx="272" cy="20" r="13" fill="rgba(255,255,255,0.6)" stroke="var(--bush)" stroke-width="1"/>
+            <path d="M272,10 L275,20 L272,30 L269,20 Z" fill="var(--bush)"/>
+            <text x="272" y="9" text-anchor="middle" font-size="6" fill="var(--bush)" font-weight="700">N</text>
+          </g>
+        </svg>
+        <div id="countryDots"></div>
+      </div>
+
+      <div class="mapview" id="mapRegionView">
+        <div class="maptitle" id="regionTitle">Auckland</div>
+        <svg viewBox="0 0 300 260" style="position:absolute;inset:0;width:100%;height:100%;">
+          <g stroke="rgba(31,61,46,0.14)" stroke-width="1.2" fill="none">
+            <path d="M10,50 C90,35 160,60 230,40 C260,32 285,45 296,58"/>
+            <path d="M8,100 C80,88 150,112 220,95 C255,86 282,100 297,115"/>
+            <path d="M12,150 C82,138 155,162 225,145 C258,136 283,150 296,162"/>
+            <path d="M14,200 C84,188 152,210 222,195 C255,186 280,198 295,208"/>
+          </g>
+          <ellipse cx="150" cy="130" rx="128" ry="108" fill="rgba(124,148,115,0.45)" stroke="var(--bush)" stroke-width="1.6"/>
+        </svg>
+        <div id="pinLayer"></div>
+        <div class="mapreadout" id="pinCount">Finding sales…</div>
+      </div>
+    </div>
+
+    <div style="padding:16px 16px 8px;" id="belowMap"></div>
+
+    <div style="display:none;" class="mono" id="clockLabel"></div>
+
+    <div id="toast" class="toast"></div>
+
+    <div id="filterDrawer">
+      <div class="sheet">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+          <div class="sectiontitle" style="font-size:22px;">Filter sales</div>
+          <button onclick="toggleFilters()" style="background:none;border:none;font-size:18px;">&times;</button>
+        </div>
+        <div class="field"><label>Jump to region</label>
+          <select id="drawerCity" onchange="jumpTo(this.value)">
+            <option value="All">Whole of New Zealand</option>
+            <option value="Auckland">Auckland</option><option value="Wellington">Wellington</option><option value="Christchurch">Christchurch</option>
+          </select>
+        </div>
+        <div class="field"><label>Suburb</label>
+          <select id="drawerSuburb" onchange="setSuburb(this.value)"></select>
+        </div>
+        <div class="field"><label>Walkable distance: <span class="mono" id="wdVal">2.0 km</span></label>
+          <input type="range" min="0.5" max="10" step="0.5" value="2" id="wdSlider" oninput="setWalkKm(this.value)" style="width:100%;">
+        </div>
+        <div class="field"><label>Sale type</label><div id="drawerCats" style="display:flex; flex-wrap:wrap; gap:8px;"></div></div>
+        <button class="btn btn-primary" style="margin-top:8px;" id="showMatchBtn" onclick="applyFilters()">Show matching sales</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- LISTING DETAIL -->
+  <div class="screen" id="screen-listing" style="display:none;">
+    <div style="height:180px; background:linear-gradient(135deg,var(--moss),var(--bush)); position:relative;">
+      <button onclick="go('map','pop')" style="position:absolute; top:16px; left:16px; background:rgba(255,255,255,0.92); border:none; border-radius:50%; width:34px; height:34px; font-size:18px;">&#8249;</button>
+      <div style="position:absolute; bottom:12px; left:16px; display:flex; gap:6px;" id="detailPhotos"></div>
+    </div>
+    <div style="padding:18px 20px 90px;">
+      <div style="display:flex; align-items:center; gap:12px; margin-bottom:10px;">
+        <div class="stamp" id="detailStamp" style="animation:popStamp .4s var(--ease);"></div>
+        <div><div style="font-family:'Bebas Neue'; font-size:21px; color:var(--bush);" id="detailTitle"></div><div style="font-size:12.5px; color:var(--moss);" id="detailCatLabel"></div></div>
+      </div>
+      <div class="card" style="padding:14px; margin-bottom:12px;">
+        <div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:8px;"><span style="color:var(--moss);">Address</span><span style="font-weight:600;" id="detailAddress"></span></div>
+        <div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:8px;"><span style="color:var(--moss);">Runs</span><span style="font-weight:600;" id="detailRuns"></span></div>
+        <div style="display:flex; justify-content:space-between; font-size:13px;"><span style="color:var(--moss);">Distance</span><span class="badge" id="detailDistance"></span></div>
+      </div>
+      <div class="sectiontitle" style="font-size:16px; margin-bottom:6px;">About this sale</div>
+      <p style="font-size:13px; line-height:1.6; color:var(--ink); margin-bottom:8px;" id="detailDesc"></p>
+      <p class="hand" style="color:var(--moss); font-size:17px; transform:rotate(-1deg); margin-bottom:14px;" id="detailNote"></p>
+
+      <button class="btn btn-primary" onclick="openDirections()">Get walking directions</button>
+      <button class="btn" id="detailFavBtn" style="margin-top:8px;" onclick="toggleFavourite(state.currentListingId); setDetailFavButton(state.currentListingId);"></button>
+
+      <div class="safetybox" style="margin-top:16px;">
+        <svg class="icon" style="width:20px;height:20px; margin-top:1px;" viewBox="0 0 24 24" fill="none" stroke="var(--orange-dark)" stroke-width="1.8"><path d="M12 3 L20 6.5 V11 C20 16 16.5 20 12 21 C7.5 20 4 16 4 11 V6.5 Z"/><line x1="12" y1="9" x2="12" y2="13"/><circle cx="12" cy="16" r="0.6" fill="var(--orange-dark)"/></svg>
+        <div>Meeting at a private address carries some risk. SaleTrail does not vet hosts or visitors and is not responsible for anyone's safety, security, or belongings. Visit in daylight where you can, and use your own judgement. <span class="btn-ghost" onclick="openLegal('listing')">Full disclaimer</span></div>
+      </div>
+
+      <div style="text-align:center; font-size:11px; color:var(--moss); margin-top:14px;" id="detailExpiry"></div>
+    </div>
+  </div>
+
+  <!-- CREATE LISTING -->
+  <div class="screen" id="screen-create" style="display:none;">
+    <div class="topbar">
+      <div class="brand"><svg class="fern" viewBox="0 0 24 24" fill="none" stroke="var(--orange)" stroke-width="1.8" stroke-linecap="round"><line x1="12" y1="2" x2="12" y2="22"/><line x1="12" y1="5" x2="6" y2="3"/><line x1="12" y1="8" x2="18.5" y2="6"/><line x1="12" y1="11" x2="5.5" y2="9.5"/><line x1="12" y1="14" x2="19" y2="12.5"/><line x1="12" y1="17" x2="6.5" y2="16"/></svg><div class="name">SALETRAIL</div></div>
+      <span></span>
+    </div>
+    <div class="corro-light" style="height:10px; margin:0 20px 18px; border-radius:3px;"></div>
+    <div style="padding:0 20px 24px;">
+      <div class="sectiontitle" style="font-size:24px; margin-bottom:2px;">List your sale</div>
+      <p style="font-size:12.5px; color:var(--moss); margin-bottom:16px;">Goes live the moment you publish. Comes down automatically the instant it ends.</p>
+
+      <div class="field"><label>Sale address</label>
+        <input id="createAddress" disabled style="background:#f1efe6; color:var(--moss);">
+        <div style="font-size:11px; color:var(--moss); margin-top:5px; display:flex; align-items:center; gap:5px;">
+          <svg class="icon" style="width:12px;height:12px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></svg>
+          Locked to your account address for everyone's safety.
+        </div>
+      </div>
+
+      <div class="field"><label>Sale title</label><input id="createTitle" placeholder="e.g. Fishing gear and camping clearance"><div class="errtext" id="err-createTitle">Give your sale a short title.</div></div>
+
+      <div class="field"><label>Sale type (choose as many as fit)</label>
+        <div id="createCatChips" style="display:flex; flex-wrap:wrap; gap:8px;"></div>
+        <div class="errtext" id="err-createCategory">Choose at least one category so buyers can find you.</div>
+      </div>
+
+      <div class="field" style="display:flex; gap:10px;">
+        <div style="flex:1;"><label>Start date</label><input type="date" id="createStartDate"><div class="errtext" id="err-createStartDate">Required.</div></div>
+        <div style="flex:1;"><label>End date</label><input type="date" id="createEndDate"><div class="errtext" id="err-createEndDate">Required.</div></div>
+      </div>
+      <div class="field" style="display:flex; gap:10px;">
+        <div style="flex:1;"><label>Start time</label><input type="time" id="createStartTime"><div class="errtext" id="err-createStartTime">Required.</div></div>
+        <div style="flex:1;"><label>End time</label><input type="time" id="createEndTime"><div class="errtext" id="err-createEndTime">Required.</div></div>
+      </div>
+      <div class="errtext" id="err-createDateOrder">End must be after the start.</div>
+
+      <div class="field">
+        <label>Photos</label>
+        <label for="photoInput" style="display:flex; align-items:center; justify-content:center; gap:8px; padding:12px; border-radius:10px; border:1.5px dashed var(--moss); color:var(--moss); font-size:13px; font-weight:600; cursor:pointer;">
+          <svg style="width:16px;height:16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 16 L4 18 a2 2 0 0 0 2 2 L18 20 a2 2 0 0 0 2 -2 L20 16"/><path d="M12 4 L12 15 M7 9 L12 4 L17 9"/></svg>
+          Upload photos from your device
+        </label>
+        <input type="file" id="photoInput" accept="image/*" multiple style="display:none;" onchange="handlePhotoUpload(event)">
+        <div class="photorow" id="photoRow" style="margin-top:10px;"></div>
+      </div>
+      <div class="field"><label>Description</label><textarea rows="3" id="createDesc" placeholder="What are you selling?"></textarea></div>
+
+      <button class="btn btn-primary" onclick="publishListing()">Publish sale</button>
+      <p style="font-size:10.5px; color:var(--moss); margin-top:10px; line-height:1.5;">As the host, you're responsible for the safety and legality of your own sale. SaleTrail is not responsible for anything that happens at your address.</p>
+    </div>
+  </div>
+
+  <!-- CONFIRM -->
+  <div class="screen" id="screen-confirm" style="display:none; align-items:center; justify-content:center; text-align:center; padding:40px;">
+    <div style="margin-top:110px;">
+      <div class="stamp gold" style="width:76px;height:76px; margin:0 auto 18px; animation:popStamp .5s var(--ease);"><svg style="width:30px;height:30px;" viewBox="0 0 24 24" fill="none" stroke="var(--gold-dark)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg></div>
+      <div class="sectiontitle" style="font-size:26px;">You're on the map</div>
+      <p style="font-size:13px; color:var(--moss); margin-top:8px; max-width:260px; margin-left:auto; margin-right:auto;">Your sale is live for everyone browsing SaleTrail. It comes down automatically the moment your listed end time passes.</p>
+      <button class="btn btn-outline" style="margin-top:18px;" onclick="go('account','fade')">Go to my account</button>
+    </div>
+  </div>
+
+  <!-- MY DAY -->
+  <div class="screen" id="screen-myday" style="display:none;">
+    <div class="topbar"><div class="brand"><svg class="fern" viewBox="0 0 24 24" fill="none" stroke="var(--orange)" stroke-width="1.8" stroke-linecap="round"><line x1="12" y1="2" x2="12" y2="22"/><line x1="12" y1="5" x2="6" y2="3"/><line x1="12" y1="8" x2="18.5" y2="6"/><line x1="12" y1="11" x2="5.5" y2="9.5"/><line x1="12" y1="14" x2="19" y2="12.5"/><line x1="12" y1="17" x2="6.5" y2="16"/></svg><div class="name">SALETRAIL</div></div><button class="topAvatar" onclick="go('account','fade')" style="width:32px;height:32px;border-radius:50%;background:var(--bush);color:var(--cream);border:none;font-family:'Bebas Neue';font-size:14px;display:none;align-items:center;justify-content:center;cursor:pointer;">?</button></div>
+    <div style="padding:0 20px 90px;" id="mydayContainer"></div>
+  </div>
+
+  <!-- ACCOUNT -->
+  <div class="screen" id="screen-account" style="display:none;">
+    <div class="topbar"><div class="brand"><svg class="fern" viewBox="0 0 24 24" fill="none" stroke="var(--orange)" stroke-width="1.8" stroke-linecap="round"><line x1="12" y1="2" x2="12" y2="22"/><line x1="12" y1="5" x2="6" y2="3"/><line x1="12" y1="8" x2="18.5" y2="6"/><line x1="12" y1="11" x2="5.5" y2="9.5"/><line x1="12" y1="14" x2="19" y2="12.5"/><line x1="12" y1="17" x2="6.5" y2="16"/></svg><div class="name">SALETRAIL</div></div><button class="topAvatar" onclick="go('account','fade')" style="width:32px;height:32px;border-radius:50%;background:var(--bush);color:var(--cream);border:none;font-family:'Bebas Neue';font-size:14px;display:none;align-items:center;justify-content:center;cursor:pointer;">?</button></div>
+    <div style="padding:0 20px 90px;">
+      <div class="card" style="padding:16px; margin-bottom:16px; display:flex; gap:12px; align-items:center;">
+        <div style="width:46px;height:46px;border-radius:50%; background:var(--bush); color:var(--cream); display:flex; align-items:center; justify-content:center; font-family:'Bebas Neue'; font-size:19px;" id="acctInitial">?</div>
+        <div><div style="font-weight:700; font-size:14.5px;" id="acctName">Your name</div><div style="font-size:12px; color:var(--moss);" id="acctAddress">Not signed up yet</div></div>
+      </div>
+
+      <div class="sectiontitle" style="font-size:16px; margin-bottom:8px;">My live listings</div>
+      <div class="card" style="padding:14px; margin-bottom:16px;" id="myListingsContainer"></div>
+
+      <div class="sectiontitle" style="font-size:16px; margin-bottom:8px;">Membership</div>
+      <div class="card" style="padding:14px; margin-bottom:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span style="font-size:13px;">Full access, $5/mo</span>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span class="badge" id="acctMemberStatus">Not active</span>
+            <button class="btn-small" id="acctActivateBtn" style="background:var(--orange); color:#fff; border:none; border-radius:7px; padding:6px 10px; font-size:11px; font-weight:700; cursor:pointer;" onclick="goActivate()">Subscribe</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="sectiontitle" style="font-size:16px; margin-bottom:8px;">Payment and security</div>
+      <div class="card" style="padding:14px; margin-bottom:16px; font-size:12.5px; color:var(--ink); line-height:1.7;">
+        <div style="display:flex; gap:8px; margin-bottom:10px;"><svg class="icon" style="margin-top:2px;" viewBox="0 0 24 24" fill="none" stroke="var(--bush)" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></svg><span>Your card details are handled entirely by Apple, Google, or Samsung billing. SaleTrail never sees or stores your card number.</span></div>
+        <div style="display:flex; gap:8px;"><svg class="icon" style="margin-top:2px;" viewBox="0 0 24 24" fill="none" stroke="var(--bush)" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></svg><span>Your name, address, and phone number stay private. Only your suburb and sale details are ever shown publicly.</span></div>
+      </div>
+
+      <div class="sectiontitle" style="font-size:16px; margin-bottom:8px;">Legal</div>
+      <button class="card" style="padding:14px; margin-bottom:8px; width:100%; text-align:left; display:flex; justify-content:space-between; align-items:center; border:1px solid var(--line); background:#fff; cursor:pointer;" onclick="openLegal('account')">
+        <span style="font-size:13px; font-weight:600;">Terms, safety and disclaimers</span><span style="color:var(--moss);">&rsaquo;</span>
+      </button>
+      <button class="btn" style="background:transparent;border:1.5px solid var(--clay); color:var(--clay); margin-top:8px;" onclick="go('managesub','push')">Manage subscription</button>
+      <div id="adminRow" style="display:none; margin-top:16px; padding:12px; border-radius:12px; background:rgba(31,61,46,0.06); text-align:center;">
+        <span class="badge">Admin access on this device</span>
+        <button class="btn-ghost" style="display:block; margin:8px auto 0;" onclick="adminLogout()">Remove admin access</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAYMENT ERROR -->
+  <div class="screen" id="screen-paymenterror" style="display:none;">
+    <div class="topbar"><button onclick="go('welcome','pop')" style="background:none;border:none; font-size:18px;">&#8249;</button><span class="eyebrow">Payment</span><span></span></div>
+    <div style="padding:0 20px 24px; text-align:center;">
+      <div class="stamp" style="width:70px;height:70px; margin:30px auto 18px; border-color:var(--clay);">
+        <svg style="width:30px;height:30px;" viewBox="0 0 24 24" fill="none" stroke="var(--clay)" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="13"/><circle cx="12" cy="16.5" r="0.6" fill="var(--clay)"/></svg>
+      </div>
+      <div class="sectiontitle" style="font-size:22px; margin-bottom:8px;">We couldn't confirm your payment</div>
+      <p style="font-size:13px; color:var(--moss); line-height:1.6; margin-bottom:20px;" id="paymentErrorDetail">Something went wrong checking this with Stripe. If you completed checkout and were charged, your payment is safe, this just means the app couldn't verify it automatically yet.</p>
+      <button class="btn btn-primary" onclick="go('welcome','pop')">Back to start</button>
+      <p style="font-size:11px; color:var(--moss); margin-top:16px; line-height:1.5;">If this keeps happening after a real payment, contact support with the date and amount charged rather than trying again, to avoid a duplicate charge.</p>
+    </div>
+  </div>
+
+  <!-- MANAGE SUBSCRIPTION -->
+  <div class="screen" id="screen-managesub" style="display:none;">
+    <div class="topbar"><button onclick="go('account','pop')" style="background:none;border:none; font-size:18px;">&#8249;</button><span class="eyebrow">Manage subscription</span><span></span></div>
+    <div style="padding:0 20px 40px;">
+      <div class="sectiontitle" style="font-size:24px; margin-bottom:14px;">Your plan</div>
+
+      <div class="card" style="padding:16px; margin-bottom:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+          <span style="font-weight:700; font-size:14px;">Full access</span>
+          <span class="badge" id="manageMemberStatus">Not active</span>
+        </div>
+        <div style="font-size:12px; color:var(--moss); margin-bottom:12px;">$5 a month, billed in advance after your free trial. Non refundable per period. Cancelling stops future billing; you keep access until the current period ends. Lets you list unlimited sales tied to your account address and browse every sale on the map.</div>
+        <button class="btn btn-small" id="memberCancelBtn" style="background:transparent;border:1.5px solid var(--clay); color:var(--clay); width:100%;" onclick="cancelMembership()">Cancel membership</button>
+      </div>
+
+      <div class="card" id="findSubCard" style="padding:16px; margin-bottom:20px; display:none;">
+        <div style="font-weight:700; font-size:13px; margin-bottom:6px;">Subscribed on a different device?</div>
+        <div style="font-size:12px; color:var(--moss); margin-bottom:10px;">This device doesn't have a subscription linked. Enter the email you signed up with and we'll look it up directly with Stripe.</div>
+        <input id="findSubEmail" placeholder="you@email.co.nz" style="margin-bottom:8px;">
+        <div class="errtext" id="err-findSubEmail">Enter the email you subscribed with.</div>
+        <button class="btn btn-small" id="findSubBtn" style="background:var(--bush); color:var(--cream); width:100%;" onclick="findMySubscription()">Find my subscription</button>
+      </div>
+
+      <p style="font-size:11px; color:var(--moss); line-height:1.6;">Billing is handled by Apple, Google, or Samsung. In a real build this screen deep links to your device's native subscription settings; here it's simulated so you can see how cancellation behaves in the app.</p>
+    </div>
+  </div>
+
+  <!-- ABOUT -->
+  <div class="screen" id="screen-about" style="display:none;">
+    <div class="topbar"><button onclick="go('welcome','pop')" style="background:none;border:none; font-size:18px;">&#8249;</button><span class="eyebrow">About</span><span></span></div>
+    <div style="padding:0 20px 40px;">
+      <div class="sectiontitle" style="font-size:26px; margin-bottom:6px;">About SaleTrail</div>
+      <p style="font-size:13.5px; color:var(--ink); line-height:1.6; margin-bottom:20px;">SaleTrail turns garage sale day into something you can actually plan for, whether you're hunting for a bargain or hosting one yourself.</p>
+
+      <div class="benefitcard">
+        <div class="strip" style="background:var(--orange);"></div>
+        <div class="inner">
+          <div class="benefitrow" style="border-top:none;"><div class="bicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></div><div><b>Plan your day</b><span>Search any address or suburb, filter by category, and heart the sales you want to hit. They all land in My Day, grouped so you can plan the shortest run between them.</span></div></div>
+          <div class="benefitrow"><div class="bicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="10" r="3"/><path d="M12 21s7-6.5 7-11a7 7 0 10-14 0c0 4.5 7 11 7 11z"/></svg></div><div><b>Plan your trips</b><span>Start with the whole of New Zealand, zoom into your region, and build a Saturday route instead of driving in circles.</span></div></div>
+          <div class="benefitrow"><div class="bicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2 L14.5 8.5 L21 9.3 L16 13.7 L17.5 20 L12 16.5 L6.5 20 L8 13.7 L3 9.3 L9.5 8.5 Z"/></svg></div><div><b>Make the most of a garage sale</b><span>New listings appear the second they're posted. Garage sales are first in, first served, so seeing it early is the whole game.</span></div></div>
+          <div class="benefitrow"><div class="bicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></svg></div><div><b>Protect your info</b><span>Your name, phone, and email are never public. Your address is only shown to paying members while your sale is live, then it's gone.</span></div></div>
+        </div>
+      </div>
+
+      <div class="sectiontitle" style="font-size:16px; margin-bottom:8px;">How it works</div>
+      <div class="card" style="padding:16px; margin-bottom:16px; font-size:12.5px; line-height:1.7; color:var(--ink);">
+        SaleTrail is one plan: $5 a month, free for your first 6 weeks with a payment method on file. It includes listing as many sales as you like from your own address, and browsing every sale on the map. Billed through your phone's app store or card, SaleTrail never sees your card details.
+      </div>
+
+      <button class="btn-ghost" onclick="openLegal('about')">Read our full Terms, safety and privacy</button>
+    </div>
+  </div>
+
+  <!-- LEGAL -->
+  <div class="screen" id="screen-legal" style="display:none;">
+    <div class="topbar"><button id="legalBack" style="background:none;border:none; font-size:18px;">&#8249;</button><span class="eyebrow">Terms and safety</span><span></span></div>
+    <div style="padding:0 20px 40px;">
+      <div class="sectiontitle" style="font-size:24px; margin-bottom:6px;">Payments and cancellation</div>
+      <div class="card" style="padding:16px; margin-bottom:20px; border:1.5px solid rgba(31,61,46,0.3);">
+        <ul class="lawlist">
+          <li>SaleTrail is a single $5 a month membership, free for your first 6 weeks with a payment method on file. It is billed in advance and is non refundable for the current billing period, including partial months.</li>
+          <li>Your membership includes listing as many sales as you like from your own address, and browsing every sale on the map. There is no separate fee for either.</li>
+          <li>You can cancel your membership at any time from your device's subscription settings or from Account in the app. Cancelling stops future billing; it does not refund the period you're currently in, and you keep access until that period ends.</li>
+          <li>All payments are processed by Apple, Google, or Samsung billing under their own refund policies, which may apply in exceptional circumstances at their discretion.</li>
+        </ul>
+      </div>
+
+      <div class="sectiontitle" style="font-size:24px; margin-bottom:6px;">Your privacy</div>
+      <div class="card" style="padding:16px; margin-bottom:20px; border:1.5px solid rgba(31,61,46,0.3);">
+        <ul class="lawlist">
+          <li>Everything you provide at signup, your name, address, phone number, email, and password, is strictly protected and used only to run your account and confirm the address of a listing.</li>
+          <li>Your personal details are never sold, rented, or shared with advertisers or other third parties.</li>
+          <li>Only your suburb and sale details are ever shown publicly. Your full name, phone number, and email stay private, and your exact address is only shown to signed in, paying members while a sale is live.</li>
+          <li>Card and payment details are handled entirely by Apple, Google, or Samsung billing. SaleTrail never sees or stores your card number.</li>
+          <li>You can request a copy of your data, or ask for your account to be deleted, at any time.</li>
+        </ul>
+      </div>
+
+      <div class="sectiontitle" style="font-size:24px; margin-bottom:12px;">Disclaimers</div>
+      <div class="card" style="padding:16px;">
+        <ul class="lawlist">
+          <li>SaleTrail lists sale times, locations, and categories that hosts submit themselves. We do not inspect, verify, or take responsibility for the items sold, their condition, price, or accuracy of any listing.</li>
+          <li>SaleTrail is not responsible for any loss, theft, or damage to belongings, before, during, or after a sale.</li>
+          <li>Meeting people at a private address carries inherent risk. SaleTrail does not vet hosts or visitors and is not responsible for the safety, conduct, or security of anyone using the app.</li>
+          <li>Attending or hosting a sale is entirely at your own risk. Use your own judgement: consider visiting in daylight, letting someone know where you're going, and trusting your instincts.</li>
+          <li>Hosts are responsible for the safety and legality of their own property, their sale, and any transactions that take place there.</li>
+          <li>This page is a summary. It does not replace SaleTrail's full Terms of Service and Privacy Policy, available on request and at account signup.</li>
+        </ul>
+      </div>
+      <p style="font-size:11px; color:var(--moss); margin-top:14px; line-height:1.6;">This summary is provided for demonstration purposes. Before launch, this should be replaced with formal Terms of Service, a Privacy Act 2020 compliant privacy policy, and a liability waiver drafted by a qualified lawyer.</p>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabbar" id="tabbar" style="display:none;">
+    <div class="tabIndicator" id="tabIndicator"></div>
+    <button class="tab" id="tab-map" onclick="go('map','fade')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="10" r="3"/><path d="M12 21s7-6.5 7-11a7 7 0 10-14 0c0 4.5 7 11 7 11z"/></svg>Map</button>
+    <button class="tab" id="tab-create" onclick="go('create','fade')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>Host a sale</button>
+    <button class="tab" id="tab-myday" onclick="go('myday','fade')" style="position:relative;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20 C12 20 3 14.5 3 8.5 C3 5.5 5.5 3.5 8 3.5 C10 3.5 11.3 4.6 12 6 C12.7 4.6 14 3.5 16 3.5 C18.5 3.5 21 5.5 21 8.5 C21 14.5 12 20 12 20 Z"/></svg>
+      My day
+      <span id="mydayCountDot" style="display:none; position:absolute; top:2px; right:16px; background:var(--orange); color:#fff; border-radius:999px; min-width:14px; height:14px; font-size:9px; align-items:center; justify-content:center; padding:0 3px;"></span>
+    </button>
+    <button class="tab" id="tab-account" onclick="go('account','fade')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>Account</button>
+  </div>
+</div>
+<div class="caption">Whole of NZ on open, tap a region to zoom in. Filters, listing creation, and the demo clock all still work inside a region.</div>
+</div>
+
+<script>
+  const ICONS = {
+    hunting:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/></svg>',
+    fishing:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M9,4 V13 a3,3 0 1 0 6,0"/><path d="M4,19 q4,-3.5 8,0 q4,3.5 8,0"/></svg>',
+    outdoors:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M4,20 L12,5 L20,20 Z"/><line x1="12" y1="5" x2="12" y2="20"/></svg>',
+    household:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M4,11 L12,4 L20,11 V20 H4 Z"/><rect x="10" y="14" width="4" height="6"/></svg>',
+    kids_clothes:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M9,4 L7,7 L4,9 L7,12 V20 H17 V12 L20,9 L17,7 L15,4 Q12,6.5 9,4 Z"/></svg>',
+    womens_clothes:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M9,3 Q12,5.5 15,3 L12,7 Z"/><path d="M8,8 L16,8 L18,20 L6,20 Z"/></svg>',
+    jewellery:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12,3 L19,9 L12,21 L5,9 Z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="9" y1="9" x2="12" y2="3"/><line x1="15" y1="9" x2="12" y2="3"/></svg>',
+    vintage_toys:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12,3 L17,9 L12,21 L7,9 Z"/><path d="M6,4.5 q6,4 12,0"/></svg>',
+    kids_toys:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="4" y="11" width="7" height="7" rx="1"/><rect x="12" y="5" width="7" height="7" rx="1"/></svg>',
+    gardening:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="21" x2="12" y2="11"/><path d="M12,13 C10,13 7,11 7,7 C11,7 12,10 12,13 Z"/><path d="M12,11 C14,11 17,9 17,5 C13,5 12,8 12,11 Z"/></svg>',
+    power_tools:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><polygon points="12,3 17,6 17,12 12,15 7,12 7,6"/><circle cx="12" cy="9" r="2"/></svg>',
+    misc:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><rect x="4" y="9" width="16" height="11"/><line x1="4" y1="9" x2="20" y2="9"/><line x1="12" y1="9" x2="12" y2="20"/><path d="M8,9 C8,6 10,4 12,4 C14,4 16,6 16,9"/></svg>'
+  };
+  const CAT_LABELS = { hunting:'Hunting', fishing:'Fishing', outdoors:'Outdoors', household:'Household', kids_clothes:'Kids clothes', womens_clothes:"Women's clothes", jewellery:'Jewellery', vintage_toys:'Vintage toys', kids_toys:'Kids toys', gardening:'Gardening', power_tools:'Power tools', misc:'Misc' };
+  const SUBURBS = {
+    Auckland:['All suburbs','Mount Eden','Epsom','Sandringham','Grey Lynn','Ponsonby','Parnell','Remuera','Newmarket','Kingsland','Mount Albert','Mount Roskill','Ellerslie','Onehunga','Avondale','New Lynn','Blockhouse Bay','Titirangi','Henderson','Te Atatu','Glen Eden','Mission Bay','St Heliers','Glendowie','Kohimarama','Meadowbank','Orakei','Devonport','Takapuna','Milford','Northcote','Birkenhead','Glenfield','Albany','Browns Bay','Manukau','Papatoetoe','Otahuhu','Papakura','Howick','Botany Downs','Pakuranga'],
+    Wellington:['All suburbs','Karori','Kelburn','Thorndon','Mount Victoria','Oriental Bay','Newtown','Berhampore','Island Bay','Brooklyn','Kilbirnie','Miramar','Seatoun','Khandallah','Ngaio','Johnsonville','Tawa','Lower Hutt','Petone','Eastbourne','Upper Hutt','Porirua'],
+    Christchurch:['All suburbs','Riccarton','Fendalton','Merivale','St Albans','Papanui','Shirley','Sydenham','Addington','Cashmere','Sumner','New Brighton','Redwood','Halswell','Hornby','Bishopdale','Ilam'],
+    All:['All suburbs']
+  };
+  const REGIONS = [
+    {city:'Auckland', x:258.8, y:107.4, active:true},
+    {city:'Hamilton', x:274.0, y:143.6, active:false},
+    {city:'Tauranga', x:300.2, y:139.8, active:false},
+    {city:'Wellington', x:259.2, y:278.6, active:true},
+    {city:'Christchurch', x:196.0, y:365.1, active:true},
+    {city:'Dunedin', x:133.0, y:455.6, active:false}
+  ];
+  function paintIcons(root){ (root||document).querySelectorAll('[data-cat]').forEach(el=>{ const ic=ICONS[el.dataset.cat]; if(ic) el.innerHTML=ic; }); }
+
+  let nextId = 100;
+  let listings = [];
+
+  let state = {
+    mapMode:'country',
+    filter:{ city:'Auckland', suburb:'All suburbs', categories:new Set(), weekend:false, walkableOnly:false, walkKm:2.0 },
+    user:{ name:'', address:'' },
+    memberPaid:false, memberActive:false, memberTrialEnd:null, isAdmin:false, stripeSubscriptionId:null,
+    myListingIds:[], currentListingId:null, legalReturnTo:'account',
+    favourites:new Set(), search:'', dayStart:{}, dayOrder:{},
+    simTime:new Date(), initialSimTime:new Date(),
+    mapLoaded:false
+  };
+
+  const withTabs = ['map','create','myday','listing','account','confirm'];
+  const TAB_INDEX = { map:0, create:1, myday:2, account:3 };
+
+  function updateTopAvatars(){
+    const has = !!(state.memberActive || state.user.name);
+    const initial = (state.user.name||'?').charAt(0).toUpperCase();
+    document.querySelectorAll('.topAvatar').forEach(b=>{
+      b.style.display = has ? 'flex' : 'none';
+      b.innerText = initial;
+    });
+  }
+
+  async function adminUnlock(){
+    const code = prompt('Admin code:');
+    if(!code) return;
+    showToast('Checking…');
+    try{
+      const resp = await fetch('/.netlify/functions/verify-admin', {
+        method:'POST',
+        headers:{'content-type':'application/json'},
+        body: JSON.stringify({code})
+      });
+      const result = await resp.json();
+      if(result.granted){
+        grantAdmin();
+        showToast('Admin access granted.');
+        go('map','fade');
+      } else {
+        showToast('Incorrect code.');
+      }
+    } catch(err){
+      showToast('Could not reach the verification server.');
+    }
+  }
+  function grantAdmin(){
+    state.isAdmin = true;
+    state.memberActive = true; state.memberPaid = true;
+    if(!state.user.name) state.user.name = 'Admin';
+    try{ localStorage.setItem('saletrail_admin', '1'); }catch(e){}
+  }
+  function adminLogout(){
+    state.isAdmin = false;
+    try{ localStorage.removeItem('saletrail_admin'); }catch(e){}
+    showToast('Admin access removed from this device.');
+    go('welcome','fade');
+  }
+
+  function go(screen, anim){
+    anim = anim || 'push';
+    document.querySelectorAll('.screen').forEach(s => { if(s.id!=='screen-'+screen) s.style.display='none'; });
+    const el = document.getElementById('screen-'+screen);
+    el.style.display = (screen==='confirm') ? 'flex' : 'block';
+    el.classList.remove('anim-push','anim-pop','anim-fade');
+    void el.offsetWidth;
+    el.classList.add('anim-'+anim);
+
+    document.getElementById('tabbar').style.display = withTabs.includes(screen) ? 'flex' : 'none';
+    if(TAB_INDEX[screen] !== undefined){
+      document.getElementById('tabIndicator').style.transform = 'translateX('+(TAB_INDEX[screen]*100)+'%)';
+    }
+    ['map','create','myday','account'].forEach(t=>{ const btn=document.getElementById('tab-'+t); if(btn) btn.classList.toggle('active', t===screen); });
+    el.scrollTop = 0;
+
+    if(screen==='map') renderMap();
+    if(screen==='account') renderAccount();
+    if(screen==='create') prefillCreate();
+    if(screen==='myday') renderMyDay();
+    if(screen==='managesub') renderManageSub();
+    updateTopAvatars();
+  }
+
+  function openLegal(from){
+    state.legalReturnTo = from;
+    document.getElementById('legalBack').onclick = ()=> go(from==='welcome' ? 'welcome' : (from==='signup'?'signup':(from==='listing'?'listing':(from==='about'?'about':'account'))), 'pop');
+    go('legal','push');
+  }
+
+  function validateField(inputId, errId, isValid){
+    document.getElementById(inputId).classList.toggle('err', !isValid);
+    document.getElementById(errId).classList.toggle('show', !isValid);
+    return isValid;
+  }
+  function validateCheck(inputId, errId){
+    const ok = document.getElementById(inputId).checked;
+    document.getElementById(errId).classList.toggle('show', !ok);
+    return ok;
+  }
+
+  function checkPasswordStrength(el, hintId){
+    const v = el.value;
+    const hint = document.getElementById(hintId);
+    if(v.length===0){ hint.style.color='var(--moss)'; hint.innerText='At least 8 characters.'; return; }
+    if(v.length<8){ hint.style.color='var(--err)'; hint.innerText='Too short, needs '+(8-v.length)+' more character'+(8-v.length===1?'':'s')+'.'; return; }
+    const hasLetter=/[a-zA-Z]/.test(v), hasNumber=/[0-9]/.test(v);
+    if(v.length>=12 && hasLetter && hasNumber){ hint.style.color='var(--bush)'; hint.innerText='Strong password.'; }
+    else if(hasLetter && hasNumber){ hint.style.color='var(--bush)'; hint.innerText='Good, meets the minimum.'; }
+    else { hint.style.color='var(--orange-dark)'; hint.innerText='Meets the minimum. Adding a number makes it stronger.'; }
+  }
+
+  function isValidEmail(v){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v); }
+
+  function submitSignup(){
+    const name = document.getElementById('hostName').value.trim();
+    const address = document.getElementById('hostAddress').value.trim();
+    const email = document.getElementById('hostEmail').value.trim();
+    let ok = true;
+    ok = validateField('hostName','err-hostName', name.length>0) && ok;
+    ok = validateField('hostAddress','err-hostAddress', address.length>0) && ok;
+    ok = validateField('hostEmail','err-hostEmail', isValidEmail(email)) && ok;
+    ok = validateField('hostPassword','err-hostPassword', document.getElementById('hostPassword').value.length>=8) && ok;
+    ok = validateCheck('hostTerms','err-hostTerms') && ok;
+    if(!ok) return;
+    state.user.name = name; state.user.address = address; state.user.email = email;
+    goToRealPayment();
+  }
+
+  function submitLogin(){
+    const email = document.getElementById('loginEmail').value.trim();
+    const password = document.getElementById('loginPassword').value.trim();
+    let ok = true;
+    ok = validateField('loginEmail','err-loginEmail', isValidEmail(email)) && ok;
+    ok = validateField('loginPassword','err-loginPassword', password.length>0) && ok;
+    document.getElementById('err-loginFail').classList.remove('show');
+    if(!ok) return;
+    if(state.user.email && state.user.email.toLowerCase()===email.toLowerCase()){
+      showToast('Welcome back'+(state.user.name?', '+state.user.name:'')+'.');
+      go(state.memberActive ? 'map' : 'account', 'fade');
+    } else {
+      document.getElementById('err-loginFail').classList.add('show');
+    }
+  }
+
+  function catLabel(c){ return CAT_LABELS[c] || c; }
+  function formatDate(iso){ return new Date(iso).toLocaleDateString('en-NZ',{weekday:'long', day:'numeric', month:'long'}); }
+  function formatTime(iso){ return new Date(iso).toLocaleTimeString('en-NZ',{hour:'numeric', minute:'2-digit'}).replace(' ',''); }
+  function formatRuns(l){
+    const sd=new Date(l.start), ed=new Date(l.end);
+    if(sd.toDateString()===ed.toDateString()) return formatDate(l.start)+', '+formatTime(l.start)+' to '+formatTime(l.end);
+    return formatDate(l.start)+' '+formatTime(l.start)+' to '+formatDate(l.end)+' '+formatTime(l.end);
+  }
+  function distanceLabel(l){ return l.distanceKm===0 ? "That's you" : l.minutes+' min '+l.mode; }
+
+  function activeFilterCount(){
+    let n = state.filter.categories.size;
+    if(state.filter.suburb!=='All suburbs') n++;
+    if(state.filter.walkableOnly) n++;
+    return n;
+  }
+
+  function matchesNonCityFilters(l){
+    if(new Date(l.end) <= state.simTime) return false;
+    if(state.filter.categories.size>0 && !l.categories.some(c=>state.filter.categories.has(c))) return false;
+    if(state.filter.weekend && !l.weekend) return false;
+    return true;
+  }
+  function countForCity(city){ return listings.filter(l=> l.city===city && matchesNonCityFilters(l)).length; }
+
+  function visibleListings(){
+    return listings.filter(l=>{
+      if(!matchesNonCityFilters(l)) return false;
+      if(l.city!==state.filter.city) return false;
+      if(state.filter.suburb!=='All suburbs' && l.suburb!==state.filter.suburb) return false;
+      if(state.filter.walkableOnly && l.distanceKm>state.filter.walkKm) return false;
+      return true;
+    }).sort((a,b)=>a.distanceKm-b.distanceKm);
+  }
+
+  function buildCategoryRow(){
+    const container = document.getElementById('categoryRow');
+    container.innerHTML='';
+    Object.keys(CAT_LABELS).forEach(cat=>{
+      const wrap=document.createElement('div');
+      wrap.className='catbadge';
+      wrap.innerHTML = '<div class="circ catToggle" data-cat="'+cat+'"></div><span>'+catLabel(cat)+'</span>';
+      wrap.querySelector('.circ').onclick=()=>toggleCategory(cat);
+      container.appendChild(wrap);
+    });
+    paintIcons(container);
+  }
+  function buildDrawerChips(){
+    const c = document.getElementById('drawerCats');
+    c.innerHTML='';
+    Object.keys(CAT_LABELS).forEach(cat=>{
+      const chip=document.createElement('div');
+      chip.className='chip catToggle'; chip.dataset.cat=cat; chip.innerText=catLabel(cat);
+      chip.onclick=()=>toggleCategory(cat);
+      c.appendChild(chip);
+    });
+  }
+  function toggleCategory(cat){
+    if(state.filter.categories.has(cat)) state.filter.categories.delete(cat); else state.filter.categories.add(cat);
+    syncCategoryUI(); renderMap();
+  }
+  function syncCategoryUI(){
+    document.querySelectorAll('.catToggle').forEach(el=>{ el.classList.toggle('on', state.filter.categories.has(el.dataset.cat)); });
+    updateFilterCountDot();
+  }
+  function updateFilterCountDot(){
+    const n = activeFilterCount();
+    const dot = document.getElementById('filterCountDot');
+    dot.style.display = n>0 ? 'inline-flex' : 'none';
+    dot.innerText = n;
+  }
+
+  function populateSuburbs(){
+    const sel = document.getElementById('drawerSuburb');
+    const list = SUBURBS[state.filter.city] || ['All suburbs'];
+    sel.innerHTML = list.map(s=>'<option>'+s+'</option>').join('');
+    if(!list.includes(state.filter.suburb)) state.filter.suburb = 'All suburbs';
+    sel.value = state.filter.suburb;
+  }
+
+  function updateBreadcrumb(){
+    const sep=document.getElementById('crumbSep'), reg=document.getElementById('crumbRegion');
+    if(state.mapMode==='region'){ sep.style.display='inline'; reg.style.display='inline'; reg.innerText=state.filter.city; }
+    else { sep.style.display='none'; reg.style.display='none'; }
+  }
+
+  function enterRegion(city){
+    state.filter.city = city; state.filter.suburb='All suburbs'; state.mapMode='region';
+    document.getElementById('drawerCity').value = city;
+    document.getElementById('mapBox').classList.add('zoomed');
+    document.getElementById('regionTitle').innerText = city;
+    updateBreadcrumb(); populateSuburbs();
+    doRenderRegion();
+  }
+  function zoomOutToCountry(){
+    state.mapMode='country';
+    document.getElementById('drawerCity').value = 'All';
+    document.getElementById('mapBox').classList.remove('zoomed');
+    updateBreadcrumb();
+    renderCountry();
+  }
+  function jumpTo(v){ if(v==='All') zoomOutToCountry(); else enterRegion(v); }
+  function notifyNoRegion(city){ showToast('No sales listed in '+city+' yet. Be the first to host one there.'); }
+
+  function setSuburb(v){ state.filter.suburb=v; updateFilterCountDot(); doRenderRegion(); }
+  function setWalkKm(v){ state.filter.walkKm=parseFloat(v); document.getElementById('wdVal').innerText=v+' km'; if(state.mapMode==='region') doRenderRegion(); else renderCountry(); }
+  function toggleWeekend(){ state.filter.weekend=!state.filter.weekend; document.getElementById('chipWeekend').classList.toggle('on', state.filter.weekend); renderMap(); }
+  function toggleWalkable(){ state.filter.walkableOnly=!state.filter.walkableOnly; document.getElementById('chipWalk').classList.toggle('on', state.filter.walkableOnly); updateFilterCountDot(); if(state.mapMode==='region') doRenderRegion(); }
+  function toggleFilters(){ document.getElementById('filterDrawer').classList.toggle('open'); }
+  function applyFilters(){
+    if(state.mapMode==='country'){
+      const active = REGIONS.filter(r=>r.active);
+      let best=null, bestCount=-1;
+      active.forEach(r=>{ const c=countForCity(r.city); if(c>bestCount){ bestCount=c; best=r; } });
+      toggleFilters();
+      if(best && bestCount>0){ enterRegion(best.city); }
+      else { showToast('No sales match those filters right now. Try widening them.'); }
+    } else {
+      toggleFilters();
+    }
+  }
+
+  function showToast(msg){
+    const t=document.getElementById('toast'); t.innerText=msg; t.classList.add('show');
+    clearTimeout(window._toastTimer); window._toastTimer=setTimeout(()=>t.classList.remove('show'), 3000);
+  }
+
+  function fastForward(){
+    state.simTime = new Date(state.simTime.getTime() + 3*24*60*60*1000);
+    renderMap(); renderAccount(); renderMyDay();
+    showToast('Time moved to '+state.simTime.toLocaleDateString('en-NZ',{weekday:'long', day:'numeric', month:'long'})+'. Ended sales were automatically removed.');
+  }
+  function resetClock(){ state.simTime=new Date(state.initialSimTime); renderMap(); renderAccount(); renderMyDay(); showToast('Demo clock reset.'); }
+
+  // ---- address / suburb search ----
+  function runSearch(v){
+    state.search = v.trim().toLowerCase();
+    const box = document.getElementById('searchResults');
+    if(!state.search){ box.style.display='none'; box.innerHTML=''; if(state.mapMode==='region') doRenderRegion(); return; }
+
+    const matches = listings.filter(l=>{
+      if(new Date(l.end) <= state.simTime) return false;
+      const hay = (l.address+' '+l.suburb+' '+l.city+' '+l.title).toLowerCase();
+      return hay.includes(state.search);
+    });
+
+    if(state.mapMode==='region'){
+      // narrow the current region's list live as you type
+      doRenderRegion();
+    }
+
+    if(matches.length===0){
+      box.style.display='block';
+      box.innerHTML = '<div style="padding:12px 14px; font-size:12.5px; color:var(--moss);">No sales match "'+v+'". Try a suburb name like Epsom or Karori.</div>';
+      return;
+    }
+    box.style.display='block';
+    box.innerHTML = matches.slice(0,6).map(l=>(
+      '<div class="searchhit" onclick="goToSearchResult('+l.id+')">'+
+        '<div class="stamp sm" data-cat="'+l.categories[0]+'"></div>'+
+        '<div style="flex:1; min-width:0;"><div style="font-weight:700; font-size:12.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">'+l.title+'</div>'+
+        '<div style="font-size:11px; color:var(--moss);">'+l.address+'</div></div>'+
+      '</div>'
+    )).join('');
+    paintIcons(box);
+  }
+  function goToSearchResult(id){
+    const l = listings.find(x=>x.id===id);
+    if(!l) return;
+    document.getElementById('searchResults').style.display='none';
+    document.getElementById('mapSearch').value='';
+    state.search='';
+    if(state.mapMode!=='region' || state.filter.city!==l.city) enterRegion(l.city);
+    showDetail(id);
+  }
+  function clearSearch(){ document.getElementById('mapSearch').value=''; runSearch(''); }
+
+  // ---- favourites / plan your day ----
+  function isFav(id){ return state.favourites.has(id); }
+  function toggleFavourite(id, evt){
+    if(evt) evt.stopPropagation();
+    if(state.favourites.has(id)) state.favourites.delete(id); else state.favourites.add(id);
+    if(state.mapMode==='region') doRenderRegion(); else renderCountry();
+    renderMyDay();
+    updateFavCount();
+    const detailBtn = document.getElementById('detailFavBtn');
+    if(detailBtn && state.currentListingId===id) setDetailFavButton(id);
+  }
+  function heartIcon(filled){
+    return '<svg viewBox="0 0 24 24" fill="'+(filled?'var(--clay)':'none')+'" stroke="'+(filled?'var(--clay)':'currentColor')+'" stroke-width="1.8"><path d="M12 20 C12 20 3 14.5 3 8.5 C3 5.5 5.5 3.5 8 3.5 C10 3.5 11.3 4.6 12 6 C12.7 4.6 14 3.5 16 3.5 C18.5 3.5 21 5.5 21 8.5 C21 14.5 12 20 12 20 Z"/></svg>';
+  }
+  function favBtnHTML(id){
+    return '<button class="favbtn'+(isFav(id)?' on':'')+'" onclick="toggleFavourite('+id+', event)" title="Save to my day">'+heartIcon(isFav(id))+'</button>';
+  }
+  function updateFavCount(){
+    const n = state.favourites.size;
+    const dot = document.getElementById('mydayCountDot');
+    if(dot){ dot.style.display = n>0 ? 'flex':'none'; dot.innerText = n; }
+  }
+  function setDetailFavButton(id){
+    const btn = document.getElementById('detailFavBtn');
+    if(!btn) return;
+    if(isFav(id)){ btn.style.background='var(--clay)'; btn.style.border='none'; btn.style.color='#fff'; btn.innerHTML = heartIcon(true).replace('currentColor','#fff')+' Saved to my day'; }
+    else { btn.style.background='transparent'; btn.style.border='1.5px solid var(--bush)'; btn.style.color='var(--bush)'; btn.innerHTML = heartIcon(false)+' Save to my day'; }
+  }
+  const CITY_CENTERS = { Auckland:{lat:-36.8485,lng:174.7633}, Wellington:{lat:-41.2865,lng:174.7762}, Christchurch:{lat:-43.5321,lng:172.6362} };
+
+  function haversineKm(lat1,lon1,lat2,lon2){
+    const R=6371, toRad=d=>d*Math.PI/180;
+    const dLat=toRad(lat2-lat1), dLon=toRad(lon2-lon1);
+    const a=Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+    return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+  }
+  function getStartCoord(city){
+    const choice = state.dayStart[city];
+    if(choice && choice!=='__home__'){
+      const l = listings.find(x=>x.suburb===choice && x.city===city);
+      if(l) return {lat:l.lat, lng:l.lng};
+    }
+    return CITY_CENTERS[city] || CITY_CENTERS.Auckland;
+  }
+  function cityFavourites(city){
+    return [...state.favourites].map(id=>listings.find(l=>l.id===id)).filter(l=>l && l.city===city);
+  }
+  function optimiseRoute(city){
+    const group = cityFavourites(city);
+    let cur = getStartCoord(city);
+    let remaining = group.slice();
+    const order = [];
+    while(remaining.length){
+      let bestIdx=0, bestD=Infinity;
+      remaining.forEach((l,i)=>{ const d=haversineKm(cur.lat,cur.lng,l.lat,l.lng); if(d<bestD){ bestD=d; bestIdx=i; } });
+      const next = remaining.splice(bestIdx,1)[0];
+      order.push(next.id);
+      cur = {lat:next.lat, lng:next.lng};
+    }
+    state.dayOrder[city] = order;
+    renderMyDay();
+    showToast('Route optimised for '+city+'. Drag with the arrows if you want it different.');
+  }
+  function moveStop(city, id, dir){
+    const arr = state.dayOrder[city];
+    if(!arr) return;
+    const i = arr.indexOf(id), j = i+dir;
+    if(j<0 || j>=arr.length) return;
+    const tmp = arr[i]; arr[i]=arr[j]; arr[j]=tmp;
+    renderMyDay();
+  }
+  function setDayStart(city, val){
+    state.dayStart[city] = val;
+    if(state.dayOrder[city]) optimiseRoute(city); else renderMyDay();
+  }
+
+  function renderMyDay(){
+    const box = document.getElementById('mydayContainer');
+    const all = [...state.favourites].map(id=>listings.find(l=>l.id===id)).filter(Boolean);
+    updateFavCount();
+    if(all.length===0){
+      box.innerHTML = '<div class="emptystate"><div class="sectiontitle">Nothing saved yet</div>Tap the heart on any sale to add it here, then come back to plan your route for the day.</div>';
+      return;
+    }
+    const cities = [...new Set(all.map(l=>l.city))].sort();
+    let html = '<div class="sectiontitle" style="font-size:20px;">Your day, '+all.length+' sale'+(all.length===1?'':'s')+'</div><p style="font-size:12px; color:var(--moss); margin:4px 0 14px;">Pick a start point per city and we\'ll suggest the shortest run between your saved sales. Reorder with the arrows any time.</p>';
+
+    cities.forEach(city=>{
+      const group = cityFavourites(city);
+      const suburbOptions = [...new Set(group.map(l=>l.suburb))];
+      let order = state.dayOrder[city];
+      if(!order || order.length!==group.length || !order.every(id=>group.find(l=>l.id===id))){
+        order = group.slice().sort((a,b)=> a.suburb.localeCompare(b.suburb) || new Date(a.start)-new Date(b.start)).map(l=>l.id);
+      }
+      const ordered = order.map(id=>group.find(l=>l.id===id)).filter(Boolean);
+      const startVal = state.dayStart[city] || '__home__';
+
+      html += '<div class="sectiontitle" style="font-size:16px; margin:18px 0 8px;">'+city+'</div>';
+      html += '<div class="card" style="padding:12px; margin-bottom:10px;">'+
+        '<label style="margin-bottom:6px;">Start from</label>'+
+        '<select onchange="setDayStart(\''+city+'\', this.value)" style="margin-bottom:8px;">'+
+          '<option value="__home__"'+(startVal==='__home__'?' selected':'')+'>My address ('+city+' central)</option>'+
+          suburbOptions.map(s=>'<option value="'+s+'"'+(startVal===s?' selected':'')+'>'+s+'</option>').join('')+
+        '</select>'+
+        '<button class="btn btn-small" style="width:100%; background:var(--bush); color:var(--cream);" onclick="optimiseRoute(\''+city+'\')">Find the most efficient order</button>'+
+      '</div>';
+
+      let cur = getStartCoord(city);
+      ordered.forEach((l,i)=>{
+        const d = haversineKm(cur.lat,cur.lng,l.lat,l.lng);
+        const distLabel = i===0 ? '~'+d.toFixed(1)+' km from your start point' : '~'+d.toFixed(1)+' km from stop '+i;
+        cur = {lat:l.lat,lng:l.lng};
+        html += '<div class="card tap" style="padding:14px; display:flex; gap:12px; margin-bottom:10px;" onclick="showDetail('+l.id+')">'+
+          '<div style="display:flex; flex-direction:column; align-items:center; gap:4px; flex-shrink:0;">'+
+            '<div style="width:24px;height:24px;border-radius:50%; background:var(--orange); color:#fff; font-family:\'JetBrains Mono\'; font-weight:700; font-size:12px; display:flex; align-items:center; justify-content:center;">'+(i+1)+'</div>'+
+            '<button onclick="event.stopPropagation(); moveStop(\''+city+'\','+l.id+',-1)" style="background:none;border:none;color:var(--moss);font-size:11px;cursor:pointer;padding:0;" title="Move earlier">&#9650;</button>'+
+            '<button onclick="event.stopPropagation(); moveStop(\''+city+'\','+l.id+',1)" style="background:none;border:none;color:var(--moss);font-size:11px;cursor:pointer;padding:0;" title="Move later">&#9660;</button>'+
+          '</div>'+
+          '<div class="stamp sm" data-cat="'+l.categories[0]+'"></div>'+
+          '<div style="flex:1;"><div style="font-weight:700; font-size:13.5px;">'+l.title+'</div>'+
+          '<div style="font-size:11.5px; color:var(--moss); margin-top:2px;">'+l.suburb+' &middot; '+formatRuns(l)+'</div>'+
+          '<div style="font-size:11px; color:var(--orange-dark); margin-top:3px; font-weight:600;">'+distLabel+'</div></div>'+
+          favBtnHTML(l.id)+
+          '</div>';
+      });
+    });
+    box.innerHTML = html;
+    paintIcons(box);
+  }
+
+  function renderMap(){
+    if(!state.mapLoaded){
+      document.getElementById('belowMap').innerHTML = '<div class="skel" style="height:78px; margin-bottom:10px;"></div><div class="skel" style="height:78px;"></div>';
+      document.getElementById('pinCount').innerText = 'Finding sales…';
+      setTimeout(()=>{
+        state.mapLoaded=true;
+        state.mapMode==='region' ? doRenderRegion() : renderCountry();
+      }, 480);
+    } else {
+      state.mapMode==='region' ? doRenderRegion() : renderCountry();
+    }
+  }
+
+  function renderCountry(){
+    document.getElementById('clockLabel').innerText = 'Demo clock: ' + state.simTime.toLocaleString('en-NZ',{weekday:'short', day:'numeric', month:'short', hour:'numeric', minute:'2-digit'});
+    const wrap = document.getElementById('countryDots');
+    wrap.innerHTML='';
+    let total=0;
+    REGIONS.forEach(r=>{
+      const count = countForCity(r.city);
+      if(r.active) total+=count;
+      const dot=document.createElement('div');
+      dot.className='regiondot'+(r.active?'':' muted');
+      dot.style.left=(r.x/385*100)+'%'; dot.style.top=(r.y/515*100)+'%';
+      dot.innerHTML='<div class="rdot">'+(count>0?'<span class="rcount">'+count+'</span>':'')+'</div><div class="rlabel">'+r.city+'</div>';
+      dot.onclick = ()=> r.active ? enterRegion(r.city) : notifyNoRegion(r.city);
+      wrap.appendChild(dot);
+    });
+    document.getElementById('pinCount').innerText = total+' sale'+(total===1?'':'s')+' live across New Zealand';
+    const smb = document.getElementById('showMatchBtn');
+    if(smb) smb.innerText = 'Show '+total+' matching sale'+(total===1?'':'s');
+
+    const activeRegions = REGIONS.filter(r=>r.active);
+    const below = document.getElementById('belowMap');
+    below.innerHTML =
+      '<div class="card cardIn" style="padding:16px; margin-bottom:12px;">'+
+        '<div class="sectiontitle" style="font-size:17px; margin-bottom:4px;">'+total+' sale'+(total===1?'':'s')+' live across New Zealand</div>'+
+        '<div style="font-size:12.5px; color:var(--moss); margin-bottom:12px;">Tap a region on the map, search an address above, or jump straight there.</div>'+
+        '<div style="display:flex; gap:8px; flex-wrap:wrap;">'+
+          activeRegions.map(r=>'<div class="chip" onclick="enterRegion(\''+r.city+'\')">'+r.city+' ('+countForCity(r.city)+')</div>').join('')+
+        '</div>'+
+      '</div>';
+  }
+
+  function doRenderRegion(){
+    let vis = visibleListings();
+    if(state.search){ vis = vis.filter(l=> (l.address+' '+l.suburb+' '+l.title).toLowerCase().includes(state.search)); }
+    document.getElementById('clockLabel').innerText = 'Demo clock: ' + state.simTime.toLocaleString('en-NZ',{weekday:'short', day:'numeric', month:'short', hour:'numeric', minute:'2-digit'});
+
+    const pinLayer = document.getElementById('pinLayer');
+    pinLayer.innerHTML='';
+    vis.forEach((l,i)=>{
+      const pin=document.createElement('div');
+      pin.style.cssText='position:absolute; left:'+l.x+'px; top:'+l.y+'px; transform:translate(-50%,-100%); cursor:pointer; animation:cardIn .3s var(--ease) both; animation-delay:'+(i*35)+'ms;';
+      pin.innerHTML='<div style="width:24px;height:24px;border-radius:50% 50% 50% 0; background:'+(l.hiddenGem?'var(--gold)':(isFav(l.id)?'var(--clay)':'var(--orange)'))+'; transform:rotate(-45deg); box-shadow:0 2px 6px rgba(0,0,0,0.3); border:2px solid var(--cream); position:relative;"><div style="position:absolute; inset:6px; background:var(--cream); border-radius:50%;"></div></div>';
+      pin.onclick=()=>showDetail(l.id);
+      pinLayer.appendChild(pin);
+    });
+    document.getElementById('pinCount').innerText = vis.length+' sale'+(vis.length===1?'':'s')+' open in '+state.filter.city;
+
+    const gem = vis.find(l=>l.hiddenGem);
+    let belowHTML = '';
+    if(gem){
+      belowHTML += '<div class="card tap cardIn" style="padding:14px; display:flex; gap:12px; margin-bottom:14px; border:1.5px solid rgba(199,154,46,0.5); background:linear-gradient(180deg,#fff,#fdf8ec); position:relative;" onclick="showDetail('+gem.id+')">'+
+        '<div class="stamp gold" data-cat="'+gem.categories[0]+'"></div>'+
+        '<div style="flex:1;"><span class="badge badge-gold">&#9733; Hidden gem</span>'+
+        '<div style="font-weight:700; font-size:14px; margin-top:4px;">'+gem.title+'</div>'+
+        '<div style="font-size:12px; color:var(--moss); margin-top:2px;">'+gem.suburb+' &middot; '+formatRuns(gem)+'</div>'+
+        (gem.note? '<p class="hand" style="color:var(--gold-dark); font-size:16px; margin-top:2px; transform:rotate(-1.5deg);">'+gem.note+'</p>':'')+
+        '</div>'+favBtnHTML(gem.id)+
+        '</div>';
+    }
+    belowHTML += '<div class="sectiontitle" style="margin-bottom:10px;">Today\'s closest sales in '+state.filter.city+'</div>';
+    const rest = vis.filter(l=>!l.hiddenGem);
+    if(rest.length===0 && !gem){
+      belowHTML += '<div class="emptystate cardIn"><div class="sectiontitle">No sales match yet</div>Try widening your filters, choosing another suburb, clearing your search, or checking back closer to the weekend.</div>';
+    } else if(rest.length===0){
+      belowHTML += '<div class="emptystate cardIn" style="padding:16px;">That hidden gem above is the only match right now. Widen your filters to see more.</div>';
+    } else {
+      belowHTML += '<div id="listContainer">' + rest.map((l,i)=>(
+        '<div class="card tap cardIn" style="padding:14px; display:flex; gap:12px; margin-bottom:10px; animation-delay:'+(i*45)+'ms; position:relative;" onclick="showDetail('+l.id+')">'+
+        '<div class="stamp" data-cat="'+l.categories[0]+'"></div>'+
+        '<div style="flex:1;"><div style="font-weight:700; font-size:14px;">'+l.title+'</div>'+
+        '<div style="font-size:12px; color:var(--moss); margin-top:2px;">'+l.suburb+' &middot; '+formatRuns(l)+'</div>'+
+        '<div style="margin-top:6px;"><span class="badge">'+distanceLabel(l)+'</span>'+(l.mine?' <span class="badge badge-gold">Yours</span>':'')+'</div></div>'+
+        favBtnHTML(l.id)+
+        '</div>'
+      )).join('') + '</div>';
+    }
+    document.getElementById('belowMap').innerHTML = belowHTML;
+    paintIcons(document.getElementById('belowMap'));
+    document.getElementById('showMatchBtn').innerText = 'Show '+vis.length+' matching sale'+(vis.length===1?'':'s');
+  }
+
+  function openDirections(){
+    const l = listings.find(x=>x.id===state.currentListingId);
+    if(!l) return;
+    const url = 'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(l.address+', '+l.city+', New Zealand');
+    window.open(url, '_blank');
+  }
+
+  function showDetail(id){
+    const l = listings.find(x=>x.id===id);
+    if(!l) return;
+    state.currentListingId=id;
+    const stamp = document.getElementById('detailStamp');
+    stamp.dataset.cat = l.categories[0];
+    stamp.style.animation='none'; void stamp.offsetWidth; stamp.style.animation='popStamp .4s var(--ease)';
+    paintIcons(document.getElementById('screen-listing'));
+    document.getElementById('detailTitle').innerText=l.title.toUpperCase();
+    document.getElementById('detailCatLabel').innerText=l.categories.map(catLabel).join(' \u00b7 ')+(l.hiddenGem?' \u00b7 Hidden gem':'');
+    document.getElementById('detailAddress').innerText=l.address;
+    document.getElementById('detailRuns').innerText=formatRuns(l);
+    document.getElementById('detailDistance').innerText=distanceLabel(l);
+    document.getElementById('detailDesc').innerText=l.desc;
+    document.getElementById('detailNote').innerText=l.note || '';
+    document.getElementById('detailNote').style.display = l.note ? 'block':'none';
+    document.getElementById('detailExpiry').innerText='This listing closes and disappears automatically at '+formatTime(l.end)+' '+formatDate(l.end)+'.';
+    setDetailFavButton(id);
+    const dp=document.getElementById('detailPhotos');
+    dp.innerHTML='';
+    if(l.photoUrls && l.photoUrls.length){
+      const n=Math.min(l.photoUrls.length,3);
+      for(let i=0;i<n;i++){ const d=document.createElement('div'); d.style.cssText='width:44px;height:44px;border-radius:9px;background-image:url('+l.photoUrls[i]+'); background-size:cover; background-position:center; border:2px solid rgba(255,255,255,0.8);'; dp.appendChild(d); }
+      if(l.photoUrls.length>3){ const d=document.createElement('div'); d.style.cssText='width:44px;height:44px;border-radius:9px;background:rgba(255,255,255,0.35); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; color:var(--bush);'; d.innerText='+'+(l.photoUrls.length-3); dp.appendChild(d); }
+    } else {
+      const n=Math.min(l.photos,3);
+      for(let i=0;i<n;i++){ const d=document.createElement('div'); d.style.cssText='width:44px;height:44px;border-radius:9px;background:rgba(255,255,255,'+(0.85-i*0.2)+');'; dp.appendChild(d); }
+      if(l.photos>3){ const d=document.createElement('div'); d.style.cssText='width:44px;height:44px;border-radius:9px;background:rgba(255,255,255,0.35); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; color:var(--bush);'; d.innerText='+'+(l.photos-3); dp.appendChild(d); }
+    }
+    go('listing','push');
+  }
+
+  let uploadedPhotos = []; // {url, name}
+  function renderPhotoRow(){
+    const row=document.getElementById('photoRow');
+    row.innerHTML='';
+    uploadedPhotos.forEach((p,i)=>{
+      const t=document.createElement('div'); t.className='phototile filled'; t.style.cssText+='background-image:url('+p.url+'); background-size:cover; background-position:center; position:relative;';
+      const x=document.createElement('div'); x.innerText='\u2715'; x.title='Remove photo';
+      x.style.cssText='position:absolute; top:2px; right:2px; background:rgba(0,0,0,0.55); color:#fff; width:16px; height:16px; border-radius:50%; font-size:9px; display:flex; align-items:center; justify-content:center;';
+      x.onclick=(e)=>{ e.stopPropagation(); uploadedPhotos.splice(i,1); renderPhotoRow(); };
+      t.appendChild(x);
+      row.appendChild(t);
+    });
+    if(uploadedPhotos.length===0){
+      const empty=document.createElement('div');
+      empty.style.cssText='font-size:11.5px; color:var(--moss);';
+      empty.innerText='No photos added yet.';
+      row.appendChild(empty);
+    }
+  }
+  function handlePhotoUpload(evt){
+    const files = Array.from(evt.target.files || []);
+    files.forEach(f=>{
+      if(!f.type.startsWith('image/')) return;
+      uploadedPhotos.push({url: URL.createObjectURL(f), name:f.name});
+    });
+    evt.target.value = '';
+    renderPhotoRow();
+  }
+
+  let createCategorySet = new Set();
+  function buildCreateCatChips(){
+    const c = document.getElementById('createCatChips');
+    c.innerHTML='';
+    Object.keys(CAT_LABELS).forEach(cat=>{
+      const chip=document.createElement('div');
+      chip.className='chip'+(createCategorySet.has(cat)?' on':'');
+      chip.dataset.cat=cat; chip.innerText=catLabel(cat);
+      chip.onclick=()=>{
+        if(createCategorySet.has(cat)) createCategorySet.delete(cat); else createCategorySet.add(cat);
+        chip.classList.toggle('on', createCategorySet.has(cat));
+        if(createCategorySet.size>0) document.getElementById('err-createCategory').classList.remove('show');
+      };
+      c.appendChild(chip);
+    });
+  }
+
+  function prefillCreate(){
+    document.getElementById('createAddress').value = state.user.address || '14 Totara Grove, Mount Eden, Auckland';
+    buildCreateCatChips();
+    renderPhotoRow();
+  }
+
+  function publishListing(){
+    if(!state.memberActive){
+      showToast('Your membership is not active. Reactivate it from Account to publish a sale.');
+      return;
+    }
+    const title = document.getElementById('createTitle').value.trim();
+    const sd = document.getElementById('createStartDate').value;
+    const st = document.getElementById('createStartTime').value;
+    const ed = document.getElementById('createEndDate').value;
+    const et = document.getElementById('createEndTime').value;
+    let ok=true;
+    ok = validateField('createTitle','err-createTitle', title.length>0) && ok;
+    const catOk = createCategorySet.size>0;
+    document.getElementById('err-createCategory').classList.toggle('show', !catOk);
+    ok = catOk && ok;
+    ok = validateField('createStartDate','err-createStartDate', !!sd) && ok;
+    ok = validateField('createStartTime','err-createStartTime', !!st) && ok;
+    ok = validateField('createEndDate','err-createEndDate', !!ed) && ok;
+    ok = validateField('createEndTime','err-createEndTime', !!et) && ok;
+    const dateOrderEl = document.getElementById('err-createDateOrder');
+    if(ok && sd && st && ed && et){
+      const orderOk = new Date(ed+'T'+et) > new Date(sd+'T'+st);
+      dateOrderEl.classList.toggle('show', !orderOk);
+      ok = orderOk && ok;
+    } else { dateOrderEl.classList.remove('show'); }
+    if(!ok) return;
+
+    const address = state.user.address || '14 Totara Grove, Mount Eden, Auckland';
+    const suburb = (address.split(',')[1]||'Your suburb').trim() || 'Your suburb';
+    const startISO = sd+'T'+st, endISO = ed+'T'+et;
+    const weekend = [0,6].includes(new Date(startISO).getDay());
+    const id = nextId++;
+    listings.push({
+      id, title, categories:[...createCategorySet], suburb, city:'Auckland', address,
+      start:startISO, end:endISO, distanceKm:0, mode:'walk', minutes:0,
+      lat:-36.8780, lng:174.7590, hiddenGem:false, weekend,
+      desc: document.getElementById('createDesc').value.trim() || 'No description added yet.',
+      note:'', photos: uploadedPhotos.length, photoUrls: uploadedPhotos.map(p=>p.url), mine:true
+    });
+    state.myListingIds.push(id);
+    createCategorySet = new Set();
+    uploadedPhotos = [];
+    go('confirm','push');
+  }
+
+  function endSaleNow(id){
+    listings = listings.filter(l=>l.id!==id);
+    state.myListingIds = state.myListingIds.filter(x=>x!==id);
+    renderAccount();
+    state.mapLoaded = true;
+    state.mapMode==='region' ? doRenderRegion() : renderCountry();
+    showToast('Listing removed. It will no longer appear on the map.');
+  }
+
+  function renderManageSub(){
+    const badge = document.getElementById('manageMemberStatus');
+    const btn = document.getElementById('memberCancelBtn');
+    const findCard = document.getElementById('findSubCard');
+    badge.innerText = state.memberActive ? (state.memberTrialEnd ? 'Free until '+formatTrialDate(new Date(state.memberTrialEnd)) : 'Active') : 'Not active';
+    const hasLink = !!state.stripeSubscriptionId;
+    btn.style.display = hasLink ? 'block' : 'none';
+    btn.disabled = !state.memberActive;
+    btn.style.opacity = state.memberActive ? '1' : '0.4';
+    btn.innerText = state.memberActive ? 'Cancel membership' : 'Membership not active';
+    findCard.style.display = hasLink ? 'none' : 'block';
+  }
+  async function findMySubscription(){
+    const email = document.getElementById('findSubEmail').value.trim();
+    const ok = validateField('findSubEmail','err-findSubEmail', isValidEmail(email));
+    if(!ok) return;
+    const btn = document.getElementById('findSubBtn');
+    btn.disabled = true; btn.innerText = 'Looking up…';
+    try{
+      const resp = await fetch('/.netlify/functions/find-subscription', {
+        method:'POST',
+        headers:{'content-type':'application/json'},
+        body: JSON.stringify({ email })
+      });
+      const result = await resp.json();
+      btn.disabled = false; btn.innerText = 'Find my subscription';
+      if(!result.found){
+        showToast(result.error || 'No active subscription found with that email.');
+        return;
+      }
+      state.stripeSubscriptionId = result.subscriptionId;
+      state.memberActive = true;
+      try{ localStorage.setItem('saletrail_sub_id', result.subscriptionId); }catch(e){}
+      showToast('Subscription found and linked to this device.');
+      renderManageSub(); renderAccount();
+    } catch(err){
+      btn.disabled = false; btn.innerText = 'Find my subscription';
+      showToast('Could not reach Stripe to look this up. Please try again.');
+    }
+  }
+  async function cancelMembership(){
+    if(!state.memberActive) return;
+    const subId = state.stripeSubscriptionId;
+    if(!subId){
+      showToast("No linked subscription found on this device. If you subscribed on another device, cancel from there, or contact support.");
+      return;
+    }
+    const btn = document.getElementById('memberCancelBtn');
+    btn.disabled = true; btn.innerText = 'Cancelling…';
+    try{
+      const resp = await fetch('/.netlify/functions/cancel-subscription', {
+        method:'POST',
+        headers:{'content-type':'application/json'},
+        body: JSON.stringify({ subscriptionId: subId })
+      });
+      const result = await resp.json();
+      if(!resp.ok || !result.cancelled){
+        showToast(result.error || "Could not cancel with Stripe. Please try again, or cancel from your device's subscription settings.");
+        renderManageSub();
+        return;
+      }
+      state.memberActive = false;
+      try{ localStorage.removeItem('saletrail_sub_id'); }catch(e){}
+      renderManageSub(); renderAccount();
+      showToast('Cancelled with Stripe. You will keep access until your current period ends, then it will not renew, and you will not be able to publish new sales.');
+    } catch(err){
+      showToast('Could not reach Stripe to cancel. Please try again.');
+      renderManageSub();
+    }
+  }
+  function goActivate(){
+    go('signup','push');
+    setTimeout(()=>{
+      if(state.user.name) document.getElementById('hostName').value = state.user.name;
+      if(state.user.address) document.getElementById('hostAddress').value = state.user.address;
+      if(state.user.email) document.getElementById('hostEmail').value = state.user.email;
+    }, 60);
+  }
+
+  function renderAccount(){
+    document.getElementById('acctName').innerText = state.user.name || 'Your name';
+    document.getElementById('acctAddress').innerText = state.user.address || 'Add your address to host a sale';
+    document.getElementById('acctInitial').innerText = (state.user.name||'?').charAt(0).toUpperCase();
+    document.getElementById('adminRow').style.display = state.isAdmin ? 'block' : 'none';
+    document.getElementById('acctMemberStatus').innerText = state.memberActive ? (state.memberTrialEnd ? 'Free until '+formatTrialDate(new Date(state.memberTrialEnd)) : 'Active') : 'Not active';
+    document.getElementById('acctActivateBtn').style.display = state.memberActive ? 'none' : 'inline-block';
+
+    const mine = listings.filter(l=>state.myListingIds.includes(l.id));
+    const box = document.getElementById('myListingsContainer');
+    if(mine.length===0){
+      box.innerHTML = '<div style="font-size:13px; color:var(--moss);">You have not listed a sale yet. Head to the Host a sale tab to publish one.</div>';
+    } else {
+      box.innerHTML = mine.map(l=>(
+        '<div style="display:flex; gap:10px; align-items:center; padding:8px 0; border-bottom:1px solid var(--line);">'+
+        '<div class="stamp sm" data-cat="'+l.categories[0]+'"></div>'+
+        '<div style="flex:1;"><div style="font-weight:700; font-size:13px;">'+l.title+'</div>'+
+        '<div style="font-size:11.5px; color:var(--moss);">Ends automatically '+formatTime(l.end)+' '+formatDate(l.end)+'</div></div>'+
+        '<button class="btn btn-small" style="background:transparent;border:1.5px solid var(--clay); color:var(--clay);" onclick="endSaleNow('+l.id+')">End now</button>'+
+        '</div>'
+      )).join('');
+    }
+    paintIcons(box);
+  }
+
+  // Real payment links: replace these two with your actual live Stripe Payment Link URLs once created.
+  const STRIPE_LINK = 'https://buy.stripe.com/cNi5kF3Vx6hDgv45Z80Ny00';
+
+  const TRIAL_DAYS = 42; // 6 weeks
+
+  function trialEndDate(){
+    const d = new Date();
+    d.setDate(d.getDate() + TRIAL_DAYS);
+    return d;
+  }
+  function formatTrialDate(d){
+    return d.toLocaleDateString('en-NZ', {day:'numeric', month:'long', year:'numeric'});
+  }
+
+  function goToRealPayment(){
+    if(STRIPE_LINK.includes('REPLACE_WITH')){
+      showToast('Add your real Stripe Payment Link in the code before this button will work.');
+      return;
+    }
+    // Stripe replaces {CHECKOUT_SESSION_ID} automatically in the success URL you configure
+    // in the Payment Link's "After payment" settings, e.g.:
+    // https://saletrail.netlify.app/?session_id={CHECKOUT_SESSION_ID}
+    window.location.href = STRIPE_LINK;
+  }
+
+  async function checkPaymentReturn(){
+    const params = new URLSearchParams(window.location.search);
+    const sessionId = params.get('session_id');
+    if(!sessionId) return;
+
+    showToast('Confirming your payment method with Stripe…');
+    try{
+      const resp = await fetch('/.netlify/functions/verify-payment?session_id=' + encodeURIComponent(sessionId));
+      if(!resp.ok){
+        history.replaceState(null, '', window.location.pathname);
+        document.getElementById('paymentErrorDetail').innerText = "The app couldn't reach its verification server (it may not be fully deployed yet). If you completed checkout and were charged, your payment is safe and this is a technical setup issue, not a billing problem.";
+        go('paymenterror','push');
+        return;
+      }
+      const result = await resp.json();
+      history.replaceState(null, '', window.location.pathname);
+
+      if(!result.verified){
+        document.getElementById('paymentErrorDetail').innerText = "Stripe couldn't confirm this as a completed payment. Please try again, or contact support if you were charged.";
+        go('paymenterror','push');
+        return;
+      }
+
+      const trial = trialEndDate();
+      state.memberActive = true; state.memberPaid = true; state.memberTrialEnd = trial;
+      state.stripeSubscriptionId = result.subscriptionId || null;
+      try{ if(state.stripeSubscriptionId) localStorage.setItem('saletrail_sub_id', state.stripeSubscriptionId); }catch(e){}
+      showToast('Payment method confirmed. Your account is free until ' + formatTrialDate(trial) + '.');
+      go('map','fade');
+    } catch(err){
+      history.replaceState(null, '', window.location.pathname);
+      document.getElementById('paymentErrorDetail').innerText = "The app couldn't reach its verification server. If you completed checkout and were charged, your payment is safe, this is a technical issue on the app's side, not a billing problem.";
+      go('paymenterror','push');
+    }
+  }
+
+  // init
+  try{ if(localStorage.getItem('saletrail_admin')==='1') grantAdmin(); }catch(e){}
+  try{ const savedSub = localStorage.getItem('saletrail_sub_id'); if(savedSub) state.stripeSubscriptionId = savedSub; }catch(e){}
+  document.getElementById('hostTrialDate').innerText = formatTrialDate(trialEndDate());
+
+  checkPaymentReturn();
+  buildCategoryRow();
+  buildDrawerChips();
+  populateSuburbs();
+  paintIcons(document.getElementById('screen-account'));
+</script>
+</body>
+</html>
